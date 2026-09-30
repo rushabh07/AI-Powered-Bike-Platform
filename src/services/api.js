@@ -228,3 +228,62 @@ export const renameChat = (id, title) =>
 
 export const deleteChat = (id) =>
     apiFetch(`/chats/${id}`, { method: "DELETE" });
+
+// ==========================================
+// Admin AI Subscription & Analytics API
+// ==========================================
+
+export const getAdminSubscriptionStats = () =>
+    apiFetch("/admin/subscription-stats");
+
+export const getAdminSubscriptionAnalytics = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/admin/subscription-analytics${query ? `?${query}` : ""}`);
+};
+
+export const getAdminSubscriptions = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/admin/subscriptions${query ? `?${query}` : ""}`);
+};
+
+export const getAdminSubscriptionDetails = (id) =>
+    apiFetch(`/admin/subscriptions/${id}`);
+
+export const getAdminExpiringSubscriptions = (days = 7) =>
+    apiFetch(`/admin/subscriptions/expiring?days=${days}`);
+
+export const getAdminLowTokenUsers = (threshold = 5) =>
+    apiFetch(`/admin/subscriptions/low-tokens?threshold=${threshold}`);
+
+export const exportAdminSubscriptionsCsv = async (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_BASE}/admin/subscriptions/export${query ? `?${query}` : ""}`, {
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    if (!response.ok) throw new Error("Failed to download CSV");
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `motoai_subscriptions_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+};
+

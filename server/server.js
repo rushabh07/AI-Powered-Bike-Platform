@@ -7,6 +7,7 @@ const authRoutes = require("./routes/authRoutes");
 const motorcycleRoutes = require("./routes/motorcycleRoutes");
 const providerRoutes = require("./routes/providerRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const adminSubscriptionRoutes = require("./routes/adminSubscriptionRoutes");
 const aiAdvisorRoutes = require("./routes/aiAdvisorRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const aiTokenRoutes = require("./routes/aiTokenRoutes");
@@ -55,6 +56,7 @@ app.use("/api/provider", providerRoutes);
 
 // Admin routes
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminSubscriptionRoutes);
 
 // AI Advisor routes
 app.use("/api/ai-advisor", aiAdvisorRoutes);

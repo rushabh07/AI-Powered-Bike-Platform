@@ -69,4 +69,12 @@ const subscriptionSchema = new mongoose.Schema(
     }
 );
 
+// Indexes for high-efficiency querying & admin analytics
+subscriptionSchema.index({ user: 1, status: 1 });
+subscriptionSchema.index({ status: 1, createdAt: -1 });
+subscriptionSchema.index({ status: 1, startedAt: -1 });
+subscriptionSchema.index({ orderId: 1 });
+subscriptionSchema.index({ paymentId: 1 });
+subscriptionSchema.index({ expiresAt: 1 });
+
 module.exports = mongoose.model("Subscription", subscriptionSchema);

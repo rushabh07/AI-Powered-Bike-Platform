@@ -24,10 +24,18 @@ import {
     MapPin,
     LogOut,
     Users,
-    ShieldCheck
+    ShieldCheck,
+    Crown,
+    TrendingUp,
+    Coins,
+    BarChart3,
+    ArrowUpRight,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
+import AISubscriptionsSection from "../components/admin/AISubscriptionsSection";
+import AIAnalyticsSection from "../components/admin/AIAnalyticsSection";
+import { getAdminSubscriptionStats } from "../services/api";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
 const ADMIN_API = "http://localhost:5000/api/admin";
@@ -105,6 +113,10 @@ const AdminDashboard = () => {
     const [dbUsers, setDbUsers] = useState([]);
     const [dbLoading, setDbLoading] = useState(false);
 
+    // AI Subscription overview for Dashboard home
+    const [subStats, setSubStats] = useState(null);
+    const [subStatsLoading, setSubStatsLoading] = useState(false);
+
     const getToken = () => localStorage.getItem("token");
 
     const handleLogout = () => {
@@ -118,6 +130,23 @@ const AdminDashboard = () => {
         setSidebarOpen(false);
         setError("");
         setSuccess("");
+    };
+
+    // --------------------------------------------------
+    // FETCH AI SUBSCRIPTION STATS (for Dashboard overview)
+    // --------------------------------------------------
+    const fetchSubStats = async () => {
+        try {
+            setSubStatsLoading(true);
+            const res = await getAdminSubscriptionStats();
+            if (res && res.success) {
+                setSubStats(res);
+            }
+        } catch (err) {
+            console.warn("Failed to fetch sub stats for overview:", err);
+        } finally {
+            setSubStatsLoading(false);
+        }
     };
 
     // --------------------------------------------------
@@ -149,6 +178,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         fetchMotorcycles();
         fetchAdminProfile();
+        fetchSubStats();
     }, []);
 
     // --------------------------------------------------
@@ -679,6 +709,8 @@ const AdminDashboard = () => {
                             {[
                                 { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={19} /> },
                                 { id: "motorcycles", label: "Motorcycles", icon: <Bike size={19} /> },
+                                { id: "subscriptions", label: "AI Subscriptions", icon: <Crown size={19} /> },
+                                { id: "analytics", label: "AI Analytics", icon: <TrendingUp size={19} /> },
                                 { id: "database", label: "Database", icon: <Database size={19} /> },
                                 { id: "profile", label: "Profile", icon: <User size={19} /> },
                             ].map((item) => {
@@ -762,6 +794,8 @@ const AdminDashboard = () => {
                                 <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
                                     {activeTab === "dashboard" && "Admin Dashboard"}
                                     {activeTab === "motorcycles" && "Motorcycles"}
+                                    {activeTab === "subscriptions" && "AI Subscriptions"}
+                                    {activeTab === "analytics" && "AI Analytics"}
                                     {activeTab === "database" && "Database"}
                                     {activeTab === "profile" && "Admin Profile"}
                                 </h2>
@@ -769,6 +803,8 @@ const AdminDashboard = () => {
                                 <p className="mt-2 max-w-xl text-sm text-gray-500">
                                     {activeTab === "dashboard" && "Overview of your MOTOAI platform."}
                                     {activeTab === "motorcycles" && "Manage your MOTOAI motorcycle inventory from one place."}
+                                    {activeTab === "subscriptions" && "Monitor active subscriptions, user token allowances, and payment statuses."}
+                                    {activeTab === "analytics" && "Analyze subscription volume growth, revenue timelines, and plan distributions."}
                                     {activeTab === "database" && "Inspect collections, brand/category breakdown and users."}
                                     {activeTab === "profile" && "View and edit your administrator profile."}
                                 </p>
@@ -779,7 +815,10 @@ const AdminDashboard = () => {
                                 {(activeTab === "dashboard" || activeTab === "motorcycles") && (
                                     <>
                                         <button
-                                            onClick={fetchMotorcycles}
+                                            onClick={() => {
+                                                fetchMotorcycles();
+                                                fetchSubStats();
+                                            }}
                                             className="
                                                 flex items-center gap-2
                                                 rounded-xl border border-white/10
@@ -807,6 +846,24 @@ const AdminDashboard = () => {
                                             Add Motorcycle
                                         </button>
                                     </>
+                                )}
+                                {activeTab === "subscriptions" && (
+                                    <button
+                                        onClick={() => switchTab("analytics")}
+                                        className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-400 transition hover:bg-orange-500 hover:text-black"
+                                    >
+                                        <TrendingUp size={17} />
+                                        View AI Analytics
+                                    </button>
+                                )}
+                                {activeTab === "analytics" && (
+                                    <button
+                                        onClick={() => switchTab("subscriptions")}
+                                        className="flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-400 transition hover:bg-orange-500 hover:text-black"
+                                    >
+                                        <Crown size={17} />
+                                        Manage Subscriptions
+                                    </button>
                                 )}
                                 {activeTab === "database" && (
                                     <button
@@ -865,6 +922,84 @@ const AdminDashboard = () => {
                             />
 
                         </div>
+                        )}
+
+                        {/* AI SUBSCRIPTION OVERVIEW WIDGET (Dynamic from MongoDB) */}
+                        {activeTab === "dashboard" && (
+                            <div className="mb-8 rounded-3xl border border-white/10 bg-[#0c0c0c] p-6">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-4 mb-5">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wider text-orange-500">
+                                            Monetization & AI Tokens
+                                        </p>
+                                        <h3 className="text-lg font-bold text-white mt-0.5 flex items-center gap-2">
+                                            <Crown size={18} className="text-orange-500" />
+                                            AI Subscription & Wallet Overview
+                                        </h3>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => switchTab("analytics")}
+                                            className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10"
+                                        >
+                                            <TrendingUp size={13} />
+                                            AI Analytics
+                                        </button>
+                                        <button
+                                            onClick={() => switchTab("subscriptions")}
+                                            className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3.5 py-2 text-xs font-bold text-orange-400 transition hover:bg-orange-500 hover:text-black"
+                                        >
+                                            Detailed Subscriptions
+                                            <ArrowUpRight size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Total Users</span>
+                                        <p className="mt-2 text-2xl font-black text-white">
+                                            {subStats?.overview?.totalUsers ?? "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">Platform registered</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-semibold">Premium Users</span>
+                                        <p className="mt-2 text-2xl font-black text-emerald-400">
+                                            {subStats?.overview?.activePremiumUsers ?? "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">Active subscriptions</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Monthly Plan</span>
+                                        <p className="mt-2 text-2xl font-black text-white">
+                                            {subStats?.overview?.monthlySubscribers ?? "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">₹199 / month</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-amber-400 font-semibold">Yearly Plan</span>
+                                        <p className="mt-2 text-2xl font-black text-white">
+                                            {subStats?.overview?.yearlySubscribers ?? "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">₹1,999 / year</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Total Revenue</span>
+                                        <p className="mt-2 text-2xl font-black text-orange-400">
+                                            {subStats ? `₹${Number(subStats.overview?.totalRevenue || 0).toLocaleString("en-IN")}` : "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">Verified payments</p>
+                                    </div>
+                                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                                        <span className="text-[11px] uppercase tracking-wider text-cyan-400 font-semibold">AI Tokens Pool</span>
+                                        <p className="mt-2 text-2xl font-black text-cyan-400 font-mono">
+                                            {subStats ? Number(subStats.tokens?.totalRemaining || 0).toLocaleString("en-IN") : "—"}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 mt-1">Active tokens balance</p>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
                         {/* TABLE CARD — Dashboard + Motorcycles tabs */}
@@ -1203,6 +1338,16 @@ const AdminDashboard = () => {
                             )}
 
                         </section>
+                        )}
+
+                        {/* AI SUBSCRIPTIONS TAB */}
+                        {activeTab === "subscriptions" && (
+                            <AISubscriptionsSection />
+                        )}
+
+                        {/* AI ANALYTICS TAB */}
+                        {activeTab === "analytics" && (
+                            <AIAnalyticsSection />
                         )}
 
                         {/* DATABASE TAB */}

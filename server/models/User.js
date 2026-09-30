@@ -91,4 +91,9 @@ const userSchema = new mongoose.Schema(
     }
 );
 
+// Indexes for fast role, token, and plan lookups
+userSchema.index({ role: 1 });
+userSchema.index({ aiPlan: 1, aiPlanExpiresAt: 1 });
+userSchema.index({ aiTokens: 1 });
+
 module.exports = mongoose.model("User", userSchema);
