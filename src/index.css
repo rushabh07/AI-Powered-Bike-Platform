@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+
+  color: #ffffff;
+  background: #080808;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+html.light :root {
+  color: #18181b;
+  background: #eef0f3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #080808;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.light body {
+  background: #eef0f3;
+  color: #18181b;
+}
+
+/* =====================================================
+   LIGHT THEME OVERRIDES
+   The app is authored dark-first with hardcoded dark
+   surfaces. When <html class="light"> is active, remap
+   the most-used dark utilities to light equivalents so
+   the toggle visibly themes every page. Accent
+   (orange/red/emerald) classes are left untouched.
+   ===================================================== */
+
+html.light .bg-\[\#070707\],
+html.light .bg-\[\#070708\],
+html.light .bg-\[\#09090b\],
+html.light .bg-\[\#050505\] {
+  background-color: #f3f4f6 !important;
+}
+
+html.light .bg-\[\#070707\]\/95,
+html.light .bg-\[\#070708\]\/85,
+html.light .bg-\[\#09090b\]\/95,
+html.light .bg-\[\#09090b\]\/90 {
+  background-color: rgba(243, 244, 246, 0.95) !important;
+}
+
+html.light .bg-\[\#0c0c0c\],
+html.light .bg-\[\#0b0b0b\],
+html.light .bg-\[\#0d0d0f\],
+html.light .bg-\[\#0d0d0d\],
+html.light .bg-\[\#111113\],
+html.light .bg-\[\#151515\],
+html.light .bg-\[\#111\],
+html.light .bg-black {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-zinc-900 {
+  background-color: #f4f4f5 !important;
+}
+
+html.light .bg-zinc-800 {
+  background-color: #e4e4e7 !important;
+}
+
+html.light .hover\:bg-zinc-900:hover,
+html.light .hover\:bg-zinc-800:hover {
+  background-color: #e9eaec !important;
+}
+
+/* translucent white fills become subtle dark fills */
+html.light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .bg-white\/10,
+html.light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+html.light .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .bg-white\/\[0\.02\] {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+html.light .bg-white\/\[0\.025\] {
+  background-color: rgba(0, 0, 0, 0.025) !important;
+}
+
+html.light .bg-white\/\[0\.03\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.045\] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .bg-white\/\[0\.05\],
+html.light .bg-white\/\[0\.06\] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* text */
+html.light .text-white,
+html.light .hover\:text-white:hover {
+  color: #18181b !important;
+}
+
+html.light .text-zinc-200,
+html.light .text-zinc-300,
+html.light .text-gray-200,
+html.light .text-gray-300 {
+  color: #3f3f46 !important;
+}
+
+html.light .text-zinc-400,
+html.light .text-gray-400 {
+  color: #52525b !important;
+}
+
+/* borders */
+html.light .border-white\/10 {
+  border-color: #e4e4e7 !important;
+}
+
+html.light .border-white\/5,
+html.light .border-white\/\[0\.05\],
+html.light .border-white\/\[0\.08\] {
+  border-color: #ececef !important;
+}
+
+html.light .border-zinc-800,
+html.light .border-gray-800 {
+  border-color: #e4e4e7 !important;
+}
+
+html.light .border-gray-700 {
+  border-color: #d4d4d8 !important;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+#root {
+  min-height: 100vh;
+}
