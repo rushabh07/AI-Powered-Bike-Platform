@@ -54,31 +54,52 @@ export default function UpgradeModal({
             const data = await createSubscriptionOrder(selectedPlan);
             setOrder(data);
 
-            if (data.mode === "razorpay" && data.keyId) {
+            // Authoritative order id/amount from backend (flat fields
+            // kept for backward compatibility with `order` object)
+            const orderId = data.order?.id || data.orderId;
+            const amountPaise =
+                data.order?.amount ?? data.amount * 100;
+            const keyId =
+                data.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+            if (data.mode === "razorpay" && keyId) {
                 const loaded = await loadRazorpayScript();
                 if (!loaded) {
-                    throw new Error("Could not load payment gateway script.");
+                    throw new Error(
+                        "Could not load Razorpay checkout. Check your connection and try again."
+                    );
                 }
+                setStep("opening");
                 const rzp = new window.Razorpay({
-                    key: data.keyId,
-                    amount: data.amount * 100,
+                    key: keyId,
+                    amount: amountPaise,
                     currency: data.currency || "INR",
-                    name: "MOTOAI Premium",
-                    description: `${data.tokens} AI tokens (${data.plan})`,
-                    order_id: data.orderId,
+                    name: "MOTOAI",
+                    description: "MOTOAI AI Plan",
+                    order_id: orderId,
                     handler: (resp) =>
                         handleVerifyPayment({
-                            orderId: data.orderId,
-                            paymentId: resp.razorpay_payment_id,
-                            signature: resp.razorpay_signature,
+                            razorpay_order_id: orderId,
+                            razorpay_payment_id:
+                                resp.razorpay_payment_id,
+                            razorpay_signature:
+                                resp.razorpay_signature,
                         }),
                     modal: {
-                        ondismiss: () => setStep("intro"),
+                        ondismiss: () => {
+                            setError(
+                                "Payment cancelled. No amount has been added to your MOTOAI subscription."
+                            );
+                            setStep("error");
+                        },
                     },
                     theme: { color: "#f97316" },
                 });
                 rzp.open();
-                setStep("intro");
+            } else if (data.mode === "razorpay") {
+                throw new Error(
+                    "Payment gateway key is missing. Contact support."
+                );
             } else {
                 // Test mode confirmation screen
                 setStep("confirm");
@@ -213,15 +234,33 @@ export default function UpgradeModal({
                                     </button>
                                 </div>
                             ) : (
-                                <button
-                                    onClick={handleCreateOrder}
-                                    disabled={step === "ordering" || step === "verifying"}
-                                    className="mt-6 w-full rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-black transition hover:bg-orange-400 shadow-lg shadow-orange-500/20 disabled:opacity-50"
-                                >
-                                    {step === "ordering" || step === "verifying"
-                                        ? "Processing..."
-                                        : `Proceed to Pay ₹${Number(planCfg.price).toLocaleString("en-IN")}`}
-                                </button>
+                                <>
+                                    <p className="mt-4 min-h-[20px] text-xs text-zinc-500">
+                                        {step === "ordering" &&
+                                            "Creating secure payment..."}
+                                        {step === "opening" &&
+                                            "Opening Razorpay... complete the payment in the popup."}
+                                        {step === "verifying" &&
+                                            "Verifying payment..."}
+                                    </p>
+                                    <button
+                                        onClick={handleCreateOrder}
+                                        disabled={
+                                            step === "ordering" ||
+                                            step === "opening" ||
+                                            step === "verifying"
+                                        }
+                                        className="mt-2 w-full rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-black transition hover:bg-orange-400 shadow-lg shadow-orange-500/20 disabled:opacity-50"
+                                    >
+                                        {step === "ordering"
+                                            ? "Creating Order..."
+                                            : step === "opening"
+                                              ? "Waiting for Payment..."
+                                              : step === "verifying"
+                                                ? "Verifying Payment..."
+                                                : `Proceed to Pay ₹${Number(planCfg.price).toLocaleString("en-IN")}`}
+                                    </button>
+                                </>
                             )}
 
                             <button

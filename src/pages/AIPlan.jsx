@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import UpgradeModal from "../components/UpgradeModal";
-import { getSubscriptionPlans, getSubscriptionStatus } from "../services/api";
+import { getSubscriptionPlans, getSubscriptionStatus, getSubscriptionHistory } from "../services/api";
 
 const FREE_FEATURES = [
     "AI Motorcycle Recommendations",
@@ -42,6 +42,7 @@ export default function AIPlan() {
     const [billing, setBilling] = useState("yearly");
     const [showUpgrade, setShowUpgrade] = useState(false);
     const [upgradePlan, setUpgradePlan] = useState("monthly");
+    const [payHistory, setPayHistory] = useState([]);
 
     const loadData = useCallback(async () => {
         try {
@@ -57,6 +58,7 @@ export default function AIPlan() {
         if (!token) {
             setLoggedIn(false);
             setSubStatus(null);
+            setPayHistory([]);
             return;
         }
 
@@ -81,6 +83,14 @@ export default function AIPlan() {
             }
         } catch (err) {
             console.warn("Could not load subscription status:", err.message);
+        }
+        try {
+            const hist = await getSubscriptionHistory();
+            if (hist && hist.success) {
+                setPayHistory(hist.subscriptions || []);
+            }
+        } catch (err) {
+            console.warn("Could not load payment history:", err.message);
         }
     }, []);
 
@@ -370,6 +380,107 @@ export default function AIPlan() {
                         </div>
                     </div>
                 </div>
+
+                {/* Payment History */}
+                {loggedIn && (
+                    <div className="mt-12 overflow-hidden rounded-3xl border border-white/10 bg-[#0c0c0c]">
+                        <div className="border-b border-white/10 p-5 sm:p-6">
+                            <h3 className="text-lg font-bold">
+                                Payment History
+                            </h3>
+                            <p className="mt-1 text-xs text-zinc-500">
+                                Every payment record from MongoDB. No
+                                card details are ever stored.
+                            </p>
+                        </div>
+                        {payHistory.length === 0 ? (
+                            <p className="p-8 text-center text-sm text-zinc-600">
+                                No payments yet. Free plan is active.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[760px] text-sm">
+                                    <thead>
+                                        <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-zinc-500">
+                                            <th className="px-5 py-3.5">
+                                                Plan
+                                            </th>
+                                            <th className="px-5 py-3.5 text-right">
+                                                Amount
+                                            </th>
+                                            <th className="px-5 py-3.5">
+                                                Payment ID
+                                            </th>
+                                            <th className="px-5 py-3.5">
+                                                Order ID
+                                            </th>
+                                            <th className="px-5 py-3.5">
+                                                Status
+                                            </th>
+                                            <th className="px-5 py-3.5">
+                                                Purchase Date
+                                            </th>
+                                            <th className="px-5 py-3.5">
+                                                Expiry Date
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {payHistory.map((s) => (
+                                            <tr
+                                                key={s._id}
+                                                className="border-b border-white/5 last:border-0"
+                                            >
+                                                <td className="px-5 py-3 font-semibold capitalize">
+                                                    {s.plan}
+                                                </td>
+                                                <td className="px-5 py-3 text-right">
+                                                    ₹
+                                                    {Number(
+                                                        s.amount || 0
+                                                    ).toLocaleString("en-IN")}
+                                                </td>
+                                                <td
+                                                    className="max-w-[140px] truncate px-5 py-3 font-mono text-xs text-zinc-400"
+                                                    title={s.paymentId || ""}
+                                                >
+                                                    {s.paymentId || "—"}
+                                                </td>
+                                                <td
+                                                    className="max-w-[140px] truncate px-5 py-3 font-mono text-xs text-zinc-400"
+                                                    title={s.orderId || ""}
+                                                >
+                                                    {s.orderId || "—"}
+                                                </td>
+                                                <td className="px-5 py-3">
+                                                    <span
+                                                        className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                                                            s.status ===
+                                                            "paid"
+                                                                ? "bg-emerald-500/10 text-emerald-400"
+                                                                : s.status ===
+                                                                    "created"
+                                                                  ? "bg-yellow-500/10 text-yellow-400"
+                                                                  : "bg-red-500/10 text-red-400"
+                                                        }`}
+                                                    >
+                                                        {s.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3 text-zinc-400">
+                                                    {fmtDate(s.createdAt)}
+                                                </td>
+                                                <td className="px-5 py-3 text-zinc-400">
+                                                    {fmtDate(s.expiresAt)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Footer notes */}
                 <div className="mt-12 rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-xs text-zinc-400">

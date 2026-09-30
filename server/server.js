@@ -31,6 +31,10 @@ app.use(
     })
 );
 
+// Raw body for the Razorpay webhook signature check.
+// MUST be mounted before express.json().
+app.use("/api/subscription/webhook", express.raw({ type: "*/*" }));
+
 app.use(express.json());
 
 
