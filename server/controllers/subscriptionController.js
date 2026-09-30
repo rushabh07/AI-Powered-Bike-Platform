@@ -27,18 +27,10 @@ The client NEVER dictates price or token balance.
 ========================================
 */
 
-const razorpayConfigured = () =>
-    Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
-
-const getRazorpay = () => {
-    // Optional dependency — only required when live keys are supplied
-    // eslint-disable-next-line global-require, import/no-unresolved
-    const Razorpay = require("razorpay");
-    return new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-};
+const {
+    isConfigured: razorpayConfigured,
+    getClient: getRazorpay,
+} = require("../config/razorpay");
 
 // =====================================================
 // PUBLIC PLANS — GET /api/subscription/plans
@@ -73,6 +65,23 @@ const createOrder = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid plan. Choose "monthly" or "yearly".',
+            });
+        }
+
+        // Prevent duplicate active purchases of the SAME plan.
+        // Different-plan switches and post-expiry renewals are allowed.
+        await effectivePlan(req.user);
+        if (
+            req.user.aiPlan === "premium" &&
+            req.user.aiPlanType === plan &&
+            req.user.aiPlanExpiresAt &&
+            new Date(req.user.aiPlanExpiresAt) > new Date()
+        ) {
+            return res.status(409).json({
+                success: false,
+                code: "ALREADY_PREMIUM",
+                message: `You already have an active Premium ${plan} plan until ${new Date(req.user.aiPlanExpiresAt).toLocaleDateString("en-IN")}.`,
+                wallet: walletOf(req.user),
             });
         }
 
@@ -121,6 +130,12 @@ const createOrder = async (req, res) => {
             mode: provider === "razorpay" ? "razorpay" : "test",
             plan,
             orderId,
+            // Spec-shaped order object (authoritative id + paise amount)
+            order: {
+                id: orderId,
+                amount: Math.round(amount * 100),
+                currency,
+            },
             amount,
             tokens: config.tokens,
             days: config.days,
@@ -144,7 +159,11 @@ const createOrder = async (req, res) => {
 // =====================================================
 const verifyPayment = async (req, res) => {
     try {
-        const { orderId, paymentId, signature } = req.body || {};
+        // Accept both flat names and Razorpay webhook-style names
+        const body = req.body || {};
+        const orderId = body.orderId || body.razorpay_order_id;
+        const paymentId = body.paymentId || body.razorpay_payment_id;
+        const signature = body.signature || body.razorpay_signature;
 
         if (!orderId || typeof orderId !== "string") {
             return res.status(400).json({
@@ -167,15 +186,10 @@ const verifyPayment = async (req, res) => {
         }
 
         if (sub.status === "paid") {
-            return res.status(200).json({
-                success: true,
-                message: "Subscription is already active.",
-                plan: req.user.aiPlan,
-                planType: req.user.aiPlanType,
-                tokens: req.user.aiTokens,
-                tokensUsed: req.user.aiTokensUsed,
-                expiresAt: req.user.aiPlanExpiresAt,
-                daysRemaining: premiumDaysLeft(req.user),
+            return res.status(409).json({
+                success: false,
+                code: "ALREADY_PAID",
+                message: "Payment already processed for this order.",
                 wallet: walletOf(req.user),
             });
         }
@@ -216,6 +230,7 @@ const verifyPayment = async (req, res) => {
         }
 
         let paymentRef = "";
+        let signatureStored = "";
         if (sub.provider === "razorpay") {
             if (!paymentId || !signature) {
                 return res.status(400).json({
@@ -229,7 +244,14 @@ const verifyPayment = async (req, res) => {
                 .update(`${orderId}|${paymentId}`)
                 .digest("hex");
 
-            if (expectedSignature !== signature) {
+            // Timing-safe comparison (never a plain === on secrets)
+            const expectedBuf = Buffer.from(expectedSignature, "utf8");
+            const actualBuf = Buffer.from(String(signature), "utf8");
+            const signatureOk =
+                expectedBuf.length === actualBuf.length &&
+                crypto.timingSafeEqual(expectedBuf, actualBuf);
+
+            if (!signatureOk) {
                 sub.status = "failed";
                 await sub.save();
                 return res.status(400).json({
@@ -238,6 +260,7 @@ const verifyPayment = async (req, res) => {
                 });
             }
             paymentRef = paymentId;
+            signatureStored = String(signature);
         } else {
             // Test Mode: local confirmation
             paymentRef = paymentId || `pay_test_${Date.now()}`;
@@ -255,6 +278,7 @@ const verifyPayment = async (req, res) => {
                 $set: {
                     status: "paid",
                     paymentId: paymentRef,
+                    razorpaySignature: signatureStored,
                     startedAt,
                     expiresAt,
                 },
@@ -265,15 +289,10 @@ const verifyPayment = async (req, res) => {
         if (!claimed) {
             const current = await Subscription.findById(sub._id).select("status");
             if (current && current.status === "paid") {
-                return res.status(200).json({
-                    success: true,
-                    message: "Subscription is already active.",
-                    plan: req.user.aiPlan,
-                    planType: req.user.aiPlanType,
-                    tokens: req.user.aiTokens,
-                    tokensUsed: req.user.aiTokensUsed,
-                    expiresAt: req.user.aiPlanExpiresAt,
-                    daysRemaining: premiumDaysLeft(req.user),
+                return res.status(409).json({
+                    success: false,
+                    code: "ALREADY_PAID",
+                    message: "Payment already processed for this order.",
                     wallet: walletOf(req.user),
                 });
             }
@@ -347,6 +366,7 @@ const getHistory = async (req, res) => {
                 tokens: s.tokens,
                 currency: s.currency,
                 orderId: s.orderId,
+                paymentId: s.paymentId || "",
                 status: s.status,
                 startedAt: s.startedAt,
                 expiresAt: s.expiresAt,
@@ -380,6 +400,10 @@ const getStatus = async (req, res) => {
             expiresAt: req.user.aiPlan === "premium" ? req.user.aiPlanExpiresAt : null,
             daysRemaining: daysLeft,
             startedAt: req.user.aiPlan === "premium" ? req.user.aiPlanStartedAt : null,
+            active:
+                req.user.aiPlan === "premium" &&
+                !!req.user.aiPlanExpiresAt &&
+                new Date(req.user.aiPlanExpiresAt) > new Date(),
             wallet: walletOf(req.user),
         });
     } catch (error) {
@@ -391,10 +415,147 @@ const getStatus = async (req, res) => {
     }
 };
 
+// =====================================================
+// RAZORPAY WEBHOOK — POST /api/subscription/webhook
+// No JWT (Razorpay calls this). Trust comes ONLY from the
+// webhook signature (RAZORPAY_WEBHOOK_SECRET). Idempotent:
+// already-paid orders are acknowledged without re-activating.
+// =====================================================
+const razorpayWebhook = async (req, res) => {
+    try {
+        const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        if (!secret) {
+            return res.status(500).json({
+                success: false,
+                message: "Webhook is not configured.",
+            });
+        }
+
+        // Razorpay signs the RAW request body — server.js mounts
+        // express.raw() for this path before express.json().
+        const rawBody = Buffer.isBuffer(req.body)
+            ? req.body
+            : null;
+        try {
+            req.body = rawBody
+                ? JSON.parse(rawBody.toString("utf8"))
+                : req.body;
+        } catch (e) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid webhook payload.",
+            });
+        }
+
+        const signature = req.headers["x-razorpay-signature"];
+        if (!signature || !rawBody) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing webhook signature.",
+            });
+        }
+
+        const expected = crypto
+            .createHmac("sha256", secret)
+            .update(rawBody)
+            .digest("hex");
+
+        const expectedBuf = Buffer.from(expected, "utf8");
+        const actualBuf = Buffer.from(String(signature), "utf8");
+        if (
+            expectedBuf.length !== actualBuf.length ||
+            !crypto.timingSafeEqual(expectedBuf, actualBuf)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid webhook signature.",
+            });
+        }
+
+        const event = req.body?.event || "";
+        if (event !== "payment.captured" && event !== "order.paid") {
+            // Acknowledge everything else without action
+            return res.status(200).json({ success: true });
+        }
+
+        const entity = req.body?.payload?.payment?.entity || {};
+        const orderId = entity.order_id || "";
+        const paymentId = entity.id || "";
+        if (!orderId) {
+            return res.status(200).json({ success: true });
+        }
+
+        const sub = await Subscription.findOne({ orderId });
+        if (!sub || sub.status === "paid") {
+            // Unknown or already handled — idempotent ack
+            return res.status(200).json({ success: true });
+        }
+        if (sub.status !== "created") {
+            return res.status(200).json({ success: true });
+        }
+
+        const plan = normalizePlan(sub.plan);
+        const config = getPlanConfig(plan);
+        if (!config) {
+            return res.status(200).json({ success: true });
+        }
+
+        const startedAt = new Date();
+        const expiresAt = new Date(
+            startedAt.getTime() + config.days * 24 * 60 * 60 * 1000
+        );
+
+        const claimed = await Subscription.findOneAndUpdate(
+            { _id: sub._id, status: "created" },
+            {
+                $set: {
+                    status: "paid",
+                    paymentId,
+                    startedAt,
+                    expiresAt,
+                },
+            },
+            { new: true }
+        );
+        if (!claimed) {
+            return res.status(200).json({ success: true });
+        }
+
+        const User = require("../models/User");
+        await User.findByIdAndUpdate(sub.user, {
+            $set: {
+                aiPlan: "premium",
+                aiPlanType: plan,
+                aiTokens: config.tokens,
+                aiTokensUsed: 0,
+                aiPlanStartedAt: startedAt,
+                aiPlanExpiresAt: expiresAt,
+            },
+        });
+
+        const {
+            createNotification,
+        } = require("./notificationController");
+        await createNotification(
+            sub.user,
+            "subscription",
+            "Premium subscription activated",
+            `Premium ${plan} is active with ${config.tokens} AI tokens.`
+        );
+
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        // Never leak internals to the payment provider
+        console.error("Webhook error:", error.message);
+        return res.status(500).json({ success: false });
+    }
+};
+
 module.exports = {
     getPlans,
     createOrder,
     verifyPayment,
     getStatus,
     getHistory,
+    razorpayWebhook,
 };

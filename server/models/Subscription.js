@@ -42,6 +42,11 @@ const subscriptionSchema = new mongoose.Schema(
             default: "",
         },
 
+        razorpaySignature: {
+            type: String,
+            default: "",
+        },
+
         provider: {
             type: String,
             enum: ["razorpay", "test"],
