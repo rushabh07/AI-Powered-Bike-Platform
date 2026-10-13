@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Logo from "../components/Logo";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
+import { useWishlist } from "../context/WishlistContext";
 import {
     Search,
     SlidersHorizontal,
@@ -89,7 +90,18 @@ export default function Motorcycles() {
 
     const [loading, setLoading] = useState(true);
     const [showFilters, setShowFilters] = useState(false);
-    const [wishlist, setWishlist] = useState([]);
+
+    // Real wishlist from MongoDB via WishlistContext
+    const { isFavorite, toggle: toggleFavorite } = useWishlist();
+
+    // Simple toast state
+    const [toast, setToast] = useState(null);
+    const toastTimer = useRef(null);
+    const showToast = (msg, ok = true) => {
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setToast({ msg, ok });
+        toastTimer.current = setTimeout(() => setToast(null), 2800);
+    };
 
     // Plan badge (backend is the source of truth)
     const [planBadge, setPlanBadge] = useState(null);
@@ -249,12 +261,19 @@ export default function Motorcycles() {
     // =====================================
     // WISHLIST
     // =====================================
-    const toggleWishlist = (id) => {
-        setWishlist((current) =>
-            current.includes(id)
-                ? current.filter((item) => item !== id)
-                : [...current, id]
-        );
+    const toggleWishlist = async (bike) => {
+        const wasLiked = isFavorite(bike._id);
+        try {
+            await toggleFavorite(bike._id, navigate);
+            showToast(
+                wasLiked
+                    ? `Removed ${bike.name} from wishlist`
+                    : `${bike.name} added to wishlist!`,
+                !wasLiked
+            );
+        } catch {
+            showToast("Failed to update wishlist. Please try again.", false);
+        }
     };
 
     // =====================================
@@ -272,6 +291,26 @@ export default function Motorcycles() {
 
     return (
         <div className="min-h-screen bg-[#070708] text-white">
+
+            {/* TOAST NOTIFICATION */}
+            {toast && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className={`fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-semibold shadow-2xl backdrop-blur-xl transition-all duration-300 ${
+                        toast.ok
+                            ? "border-orange-500/30 bg-orange-500/10 text-orange-300"
+                            : "border-red-500/30 bg-red-500/10 text-red-300"
+                    }`}
+                >
+                    <Heart
+                        size={16}
+                        className={toast.ok ? "fill-orange-400 text-orange-400" : "text-red-400"}
+                    />
+                    {toast.msg}
+                </div>
+            )}
+
 
             {/* =====================================
                 NAVBAR
@@ -932,13 +971,9 @@ export default function Motorcycles() {
                                     <BikeCard
                                         key={bike._id}
                                         bike={bike}
-                                        liked={wishlist.includes(
-                                            bike._id
-                                        )}
+                                        liked={isFavorite(bike._id)}
                                         onWishlist={() =>
-                                            toggleWishlist(
-                                                bike._id
-                                            )
+                                            toggleWishlist(bike)
                                         }
                                         onCompare={() =>
                                             navigate(
@@ -1006,21 +1041,19 @@ function BikeCard({
 
                 {/* WISHLIST */}
                 <button
-                    onClick={onWishlist}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onWishlist(); }}
                     aria-label={liked ? `Remove ${bike.name} from wishlist` : `Save ${bike.name} to wishlist`}
                     aria-pressed={liked}
-                    className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition ${liked
-                        ? "bg-orange-500 text-black"
-                        : "bg-black/60 text-white hover:bg-orange-500 hover:text-black"
-                        }`}
+                    title={liked ? "In Wishlist" : "Add to Wishlist"}
+                    className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-xl transition-all duration-200 ${
+                        liked
+                            ? "border-orange-500 bg-orange-500 text-black shadow-lg shadow-orange-500/30"
+                            : "border-white/10 bg-black/60 text-white hover:border-orange-500/60 hover:bg-orange-500/20 hover:text-orange-400"
+                    }`}
                 >
                     <Heart
                         size={18}
-                        className={
-                            liked
-                                ? "fill-current"
-                                : ""
-                        }
+                        className={liked ? "fill-current" : ""}
                     />
                 </button>
 

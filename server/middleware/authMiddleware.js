@@ -34,7 +34,9 @@ const protect = async (req, res, next) => {
             req.user = user;
             return next();
         } catch (error) {
-            console.error("Auth Middleware Error:", error.message);
+            if (error.message !== "jwt expired") {
+                console.error("Auth Middleware Error:", error.message);
+            }
             return res.status(401).json({
                 message: "Unauthenticated. Invalid or expired token.",
             });

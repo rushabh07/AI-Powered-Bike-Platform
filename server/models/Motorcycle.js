@@ -17,6 +17,14 @@ const motorcycleImageSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const cityPriceSchema = new mongoose.Schema(
+    {
+        city: { type: String, required: true, trim: true },
+        roadTax: { type: Number, required: true, min: 0 },
+    },
+    { _id: false }
+);
+
 const motorcycleSchema = new mongoose.Schema(
     {
         name: {
@@ -29,6 +37,17 @@ const motorcycleSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true
+        },
+
+        exShowroomPrice: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
+        cityPrices: {
+            type: [cityPriceSchema],
+            default: [],
         },
 
         brandLogo: {

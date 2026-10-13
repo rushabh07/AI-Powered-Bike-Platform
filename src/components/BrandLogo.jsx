@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { optimizeThumbnail } from "../utils/imageOptimizer";
 
 /**
  * BrandLogo — single shared brand-logo component.
@@ -15,7 +16,7 @@ const BrandLogo = ({ brand, brandLogo, size = 36, className = "" }) => {
     if (src && !imgError) {
         return (
             <img
-                src={src}
+                src={optimizeThumbnail(src, Math.max(64, size * 2))}
                 alt={`${brand} logo`}
                 width={size}
                 height={size}

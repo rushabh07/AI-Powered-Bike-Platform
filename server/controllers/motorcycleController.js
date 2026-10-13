@@ -1,4 +1,5 @@
 const Motorcycle = require("../models/Motorcycle");
+const MotorcycleVariant = require("../models/MotorcycleVariant");
 const mongoose = require("mongoose");
 
 // =====================================================
@@ -159,7 +160,25 @@ const getMotorcycles = async (req, res) => {
 
         const motorcycles = await Motorcycle
             .find(filter)
-            .sort(sortOption);
+            .sort(sortOption)
+            .lean();
+
+        const bikeIds = motorcycles.map((m) => m._id);
+        const variants = await MotorcycleVariant.find({
+            motorcycle: { $in: bikeIds },
+            isAvailable: true,
+        }).lean();
+
+        const variantsByBike = {};
+        variants.forEach((v) => {
+            const bId = String(v.motorcycle);
+            if (!variantsByBike[bId]) variantsByBike[bId] = [];
+            variantsByBike[bId].push(v);
+        });
+
+        motorcycles.forEach((m) => {
+            m.variants = variantsByBike[String(m._id)] || [];
+        });
 
         res.status(200).json({
             success: true,
@@ -193,7 +212,7 @@ const getMotorcycleById = async (req, res) => {
             });
         }
 
-        const motorcycle = await Motorcycle.findById(id);
+        const motorcycle = await Motorcycle.findById(id).lean();
 
         if (!motorcycle) {
             return res.status(404).json({
@@ -201,6 +220,13 @@ const getMotorcycleById = async (req, res) => {
                 message: "Motorcycle not found"
             });
         }
+
+        const variants = await MotorcycleVariant.find({
+            motorcycle: id,
+            isAvailable: true,
+        }).lean();
+
+        motorcycle.variants = variants;
 
         res.status(200).json({
             success: true,

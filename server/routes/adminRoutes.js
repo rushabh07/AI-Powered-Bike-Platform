@@ -2,6 +2,9 @@ const express = require("express");
 
 const User = require("../models/User");
 const Motorcycle = require("../models/Motorcycle");
+const Order = require("../models/Order");
+const Review = require("../models/Review");
+const MotorcycleVariant = require("../models/MotorcycleVariant");
 
 let Booking = null;
 try {
@@ -89,6 +92,136 @@ router.put("/profile", protect, adminOnly, async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to update profile",
+        });
+    }
+});
+
+// =====================================================
+// GET ALL REVIEWS (Admin)
+// GET /api/admin/reviews
+// =====================================================
+router.get("/reviews", protect, adminOnly, async (req, res) => {
+    try {
+        const reviews = await Review.find()
+            .populate({ path: "user", select: "name email" })
+            .populate({ path: "motorcycle", select: "name brand" })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            count: reviews.length,
+            reviews: reviews.map((r) => ({
+                _id: r._id,
+                rating: r.rating,
+                comment: r.comment,
+                createdAt: r.createdAt,
+                user: r.user
+                    ? { _id: r.user._id, name: r.user.name, email: r.user.email }
+                    : null,
+                motorcycle: r.motorcycle
+                    ? { _id: r.motorcycle._id, name: r.motorcycle.name, brand: r.motorcycle.brand }
+                    : null,
+            })),
+        });
+    } catch (error) {
+        console.error("Get admin reviews error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch reviews",
+        });
+    }
+});
+
+// =====================================================
+// DELETE REVIEW (Admin)
+// DELETE /api/admin/reviews/:id
+// =====================================================
+router.delete("/reviews/:id", protect, adminOnly, async (req, res) => {
+    try {
+        const review = await Review.findByIdAndDelete(req.params.id);
+        if (!review) {
+            return res.status(404).json({
+                success: false,
+                message: "Review not found",
+            });
+        }
+        res.status(200).json({
+            success: true,
+            message: "Review deleted successfully",
+        });
+    } catch (error) {
+        console.error("Delete review error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete review",
+        });
+    }
+});
+
+// =====================================================
+// GET ADMIN DASHBOARD STATS
+// GET /api/admin/dashboard/stats
+// =====================================================
+router.get("/dashboard/stats", protect, adminOnly, async (req, res) => {
+    try {
+        const now = new Date();
+
+        const [
+            activePremiumUsers,
+            totalVariants,
+            totalReviews,
+            totalOrders,
+            paidOrders,
+            pendingOrders,
+            revenueResult,
+        ] = await Promise.all([
+            User.countDocuments({
+                aiPlan: "premium",
+                aiPlanExpiresAt: { $gt: now },
+            }),
+            MotorcycleVariant.countDocuments(),
+            Review.countDocuments(),
+            Order.countDocuments(),
+            Order.countDocuments({ status: "paid" }),
+            Order.countDocuments({
+                status: { $in: ["pending", "payment_pending"] },
+            }),
+            Order.aggregate([
+                { $match: { status: "paid" } },
+                {
+                    $group: {
+                        _id: null,
+                        total: { $sum: "$totalAmount" },
+                    },
+                },
+            ]),
+        ]);
+
+        const totalRevenue =
+            revenueResult.length > 0 &&
+            revenueResult[0].total != null &&
+            !isNaN(revenueResult[0].total)
+                ? Math.round(revenueResult[0].total)
+                : 0;
+
+        res.status(200).json({
+            success: true,
+            stats: {
+                activePremiumUsers,
+                totalVariants,
+                totalReviews,
+                totalOrders,
+                paidOrders,
+                pendingOrders,
+                totalRevenue,
+            },
+        });
+    } catch (error) {
+        console.error("Get dashboard stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch dashboard stats",
         });
     }
 });

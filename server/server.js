@@ -2,6 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require("path");
+const fs = require("fs");
 
 const authRoutes = require("./routes/authRoutes");
 const motorcycleRoutes = require("./routes/motorcycleRoutes");
@@ -14,6 +16,10 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const userRoutes = require("./routes/userRoutes");
 const comparisonRoutes = require("./routes/comparisonRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const variantRoutes = require("./routes/variantRoutes");
+const dealershipRoutes = require("./routes/dealershipRoutes");
 
 dotenv.config();
 
@@ -81,16 +87,43 @@ app.use("/api/notifications", notificationRoutes);
 // Subscription / Premium routes
 app.use("/api/subscription", subscriptionRoutes);
 
+// Reviews & Ratings routes
+app.use("/api/reviews", reviewRoutes);
+
+// Motorcycle Purchase / Order routes
+app.use("/api/orders", orderRoutes);
+
+// Motorcycle Variant routes
+app.use("/api/variants", variantRoutes);
+
+// Dealership routes
+app.use("/api/dealerships", dealershipRoutes);
+
 
 // ========================================
-// 404 Handler
+// Serve Frontend (production build)
 // ========================================
 
-app.use((req, res) => {
-    res.status(404).json({
-        message: `Route ${req.method} ${req.originalUrl} not found`,
+const distPath = path.join(__dirname, "..", "dist");
+
+if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+
+    app.use((req, res) => {
+        if (req.path.startsWith("/api/")) {
+            return res.status(404).json({
+                message: `Route ${req.method} ${req.originalUrl} not found`,
+            });
+        }
+        res.sendFile(path.join(distPath, "index.html"));
     });
-});
+} else {
+    app.use((req, res) => {
+        res.status(404).json({
+            message: `Route ${req.method} ${req.originalUrl} not found`,
+        });
+    });
+}
 
 
 // ========================================

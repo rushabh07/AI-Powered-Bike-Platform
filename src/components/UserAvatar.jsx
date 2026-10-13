@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { optimizeThumbnail } from "../utils/imageOptimizer";
 
 /**
  * UserAvatar — shows profileImage when available,
@@ -16,8 +17,12 @@ const UserAvatar = ({ user, size = 40, className = "", textClass = "" }) => {
     if (src && !imgError) {
         return (
             <img
-                src={src}
+                src={optimizeThumbnail(src, size * 2)}
                 alt={user?.name || "profile"}
+                width={size}
+                height={size}
+                loading="lazy"
+                decoding="async"
                 style={style}
                 onError={() => setImgError(true)}
                 className={`rounded-full object-cover border border-white/10 bg-zinc-800 ${className}`}

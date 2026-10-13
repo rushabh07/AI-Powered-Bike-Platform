@@ -25,6 +25,7 @@ import {
 import Logo from "../components/Logo";
 import UserAvatar from "../components/UserAvatar";
 import ThemeToggle from "../components/ThemeToggle";
+import BrandLogo from "../components/BrandLogo";
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -90,6 +91,7 @@ const footerLinks = {
         ["Explore Motorcycles", "/motorcycles"],
         ["AI Advisor", "/ai-advisor"],
         ["Compare Bikes", "/compare"],
+        ["Our Impact", "/impact"],
         ["EMI Calculator", "/emi-calculator"],
         ["Book Test Ride", "/test-ride"]
     ],
@@ -142,137 +144,286 @@ const Button = ({
 );
 
 // ==============================
-// RECOMMENDATION CARD (database-driven)
-// Handles raw MongoDB documents: numeric price/engine/
-// mileage, images gallery array, optional match score.
+// RECOMMENDATION / MOTORCYCLE CARD (database-driven)
+// Displays images, brand, name, variants, specifications,
+// ex-showroom price, and city-wise on-road price.
 // ==============================
-const RecommendationCard = ({ bike, navigate }) => {
+const RecommendationCard = ({ bike, navigate, isAdmin = false }) => {
     const isEV = String(bike.category || "").toLowerCase() === "electric";
+    const variants = bike.variants || [];
+    const [selectedVariant, setSelectedVariant] = useState(variants[0] || null);
+    const [activeImgIndex, setActiveImgIndex] = useState(0);
 
-    const priceText =
-        typeof bike.price === "number"
-            ? `₹${(bike.price / 100000).toFixed(2)} Lakh`
-            : bike.price;
+    const baseExShowroom = bike.exShowroomPrice || bike.price || 0;
+    const activeExShowroom = selectedVariant
+        ? selectedVariant.exShowroomPrice
+        : baseExShowroom;
+
+    const activeCityPrices = (selectedVariant?.cityPrices && selectedVariant.cityPrices.length > 0)
+        ? selectedVariant.cityPrices
+        : (bike.cityPrices || []);
+
+    const defaultCity = activeCityPrices[0]?.city || "Mumbai";
+    const [selectedCity, setSelectedCity] = useState(defaultCity);
+
+    const activeCityPrice = activeCityPrices.find(
+        (cp) => cp.city.toLowerCase() === selectedCity.toLowerCase()
+    ) || activeCityPrices[0];
+
+    const roadTax = activeCityPrice ? activeCityPrice.roadTax : 0;
+    const insurance = Math.round(activeExShowroom * 0.03);
+    const onRoadPrice = activeExShowroom + roadTax + insurance;
+
+    const imagesList = Array.isArray(bike.images) && bike.images.length > 0
+        ? bike.images
+        : (bike.image ? [{ url: bike.image, label: "Main" }] : []);
+
+    const currentImage = imagesList[activeImgIndex]?.url || bike.image || "";
+
+    const priceText = `₹${(activeExShowroom / 100000).toFixed(2)} Lakh`;
+    const onRoadText = `₹${(onRoadPrice / 100000).toFixed(2)} Lakh`;
 
     const engineText = isEV
-        ? bike.range ? `${bike.range} km range` : "Electric"
-        : typeof bike.engine === "number" ? `${bike.engine} CC` : bike.engine;
+        ? (bike.range ? `${bike.range} km range` : "Electric")
+        : (selectedVariant?.engine || bike.engine ? `${selectedVariant?.engine || bike.engine} CC` : "N/A");
 
     const mileageText = isEV
-        ? bike.batteryCapacity ? `${bike.batteryCapacity} kWh` : "Electric"
-        : typeof bike.mileage === "number" ? `${bike.mileage} KM/L` : bike.mileage;
+        ? (bike.batteryCapacity ? `${bike.batteryCapacity} kWh` : "Electric")
+        : (selectedVariant?.mileage || bike.mileage ? `${selectedVariant?.mileage || bike.mileage} KM/L` : "N/A");
+
+    const powerText = isEV
+        ? (bike.power ? `${bike.power} kW` : "N/A")
+        : (selectedVariant?.power || bike.power ? `${selectedVariant?.power || bike.power} HP` : "N/A");
 
     const matchText =
         bike.match ||
         `${Math.min(99, Math.round(((Number(bike.rating) || 4.5) / 5) * 100))}%`;
 
-    const imageSrc = bike.image || bike.images?.[0]?.url || "";
-
     return (
-    <div className="group bg-[#151515] border border-gray-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition">
-        <div className="relative h-56 overflow-hidden">
-            {imageSrc ? (
-                <img
-                    src={imageSrc}
-                    alt={bike.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[#0d0d0d]">
-                    <FaMotorcycle className="text-orange-500 text-5xl" />
-                </div>
-            )}
+        <div className="group bg-[#151515] border border-gray-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition flex flex-col">
+            {/* CARD IMAGE */}
+            <div className="relative h-56 overflow-hidden bg-black/40">
+                {currentImage ? (
+                    <img
+                        src={currentImage}
+                        alt={bike.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#0d0d0d]">
+                        <FaMotorcycle className="text-orange-500 text-5xl" />
+                    </div>
+                )}
 
-            <div className="absolute top-4 left-4 bg-orange-500 text-black px-3 py-1.5 rounded-lg text-xs font-black">
-                {matchText} MATCH
+                <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <span className="bg-orange-500 text-black px-2.5 py-1 rounded-lg text-xs font-black">
+                        {matchText} MATCH
+                    </span>
+                    {isAdmin && (
+                        <span className="bg-amber-500/90 text-black px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                            Admin Inspection
+                        </span>
+                    )}
+                </div>
+
+                <button
+                    onClick={() => navigate("/login")}
+                    aria-label={`Save ${bike.name} to wishlist`}
+                    aria-pressed="false"
+                    className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center hover:bg-orange-500 hover:text-black transition text-white"
+                >
+                    <FaHeart aria-hidden="true" />
+                </button>
+
+                {/* Multiple Images Dots */}
+                {imagesList.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/70 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                        {imagesList.slice(0, 5).map((img, idx) => (
+                            <button
+                                key={idx}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveImgIndex(idx);
+                                }}
+                                className={`w-2 h-2 rounded-full transition ${
+                                    activeImgIndex === idx
+                                        ? "bg-orange-500 w-4"
+                                        : "bg-white/40 hover:bg-white"
+                                }`}
+                                title={img.label || `Image ${idx + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
-            <button
-                onClick={() => navigate("/login")}
-                aria-label={`Save ${bike.name} to wishlist`}
-                aria-pressed="false"
-                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center hover:bg-orange-500 hover:text-black transition"
-            >
-                <FaHeart aria-hidden="true" />
-            </button>
-        </div>
-
-        <div className="p-6">
-            <div className="flex justify-between items-start">
+            {/* CARD BODY */}
+            <div className="p-6 flex-1 flex flex-col justify-between">
                 <div>
-                    <p className="text-orange-500 text-xs font-semibold">
-                        {bike.category}
-                    </p>
+                    {/* Brand & Category & Rating */}
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                {bike.brandLogo && (
+                                    <BrandLogo
+                                        brand={bike.brand}
+                                        brandLogo={bike.brandLogo}
+                                        size={22}
+                                    />
+                                )}
+                                <span className="text-orange-500 text-xs font-bold uppercase tracking-wider">
+                                    {bike.brand}
+                                </span>
+                                <span className="text-zinc-600">•</span>
+                                <span className="text-zinc-400 text-xs font-medium">
+                                    {bike.category}
+                                </span>
+                            </div>
 
-                    <h3 className="text-xl font-bold mt-1">
-                        {bike.name}
-                    </h3>
+                            <h3 className="text-xl font-bold mt-1 text-white">
+                                {bike.name}
+                            </h3>
+                        </div>
+
+                        <span className="flex items-center gap-1 text-yellow-400 text-sm font-semibold">
+                            <FaStar /> {bike.rating}
+                        </span>
+                    </div>
+
+                    {/* Variants Inspection Pills */}
+                    {variants.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                            <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1.5">
+                                <span className="font-semibold text-zinc-300">
+                                    Variants ({variants.length})
+                                </span>
+                                {selectedVariant && (
+                                    <span className="text-orange-400 font-bold">
+                                        {selectedVariant.variantName}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {variants.map((v) => {
+                                    const isSel = selectedVariant?._id === v._id;
+                                    return (
+                                        <button
+                                            key={v._id}
+                                            onClick={() => setSelectedVariant(v)}
+                                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                                                isSel
+                                                    ? "bg-orange-500 text-black shadow-md shadow-orange-500/20"
+                                                    : "bg-white/5 text-zinc-400 border border-white/10 hover:border-orange-500/30 hover:text-white"
+                                            }`}
+                                        >
+                                            {v.variantName}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Ex-Showroom & City On-Road Price Box */}
+                    <div className="mt-4 rounded-xl bg-[#0d0d0d] p-3.5 border border-white/[0.06]">
+                        <div className="flex items-baseline justify-between">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">
+                                    Ex-Showroom Price
+                                </p>
+                                <p className="text-xl font-black text-white mt-0.5">
+                                    {priceText}
+                                </p>
+                            </div>
+
+                            {/* City Dropdown */}
+                            {activeCityPrices.length > 0 && (
+                                <div className="text-right">
+                                    <label htmlFor={`city-sel-${bike._id}`} className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold block mb-0.5">
+                                        Select City
+                                    </label>
+                                    <select
+                                        id={`city-sel-${bike._id}`}
+                                        aria-label={`Select city for ${bike.name}`}
+                                        value={selectedCity}
+                                        onChange={(e) => setSelectedCity(e.target.value)}
+                                        className="bg-[#181818] text-xs font-bold text-orange-400 border border-white/10 rounded-lg px-2.5 py-1 outline-none focus:border-orange-500 cursor-pointer"
+                                    >
+                                        {activeCityPrices.map((cp) => (
+                                            <option key={cp.city} value={cp.city}>
+                                                {cp.city}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* On-Road Price Output */}
+                        <div className="mt-2.5 pt-2 border-t border-white/[0.06] flex items-center justify-between">
+                            <span className="text-xs text-zinc-400 font-medium">
+                                On-Road ({activeCityPrice?.city || selectedCity}):
+                            </span>
+                            <span className="text-sm font-black text-orange-400">
+                                {onRoadText}
+                            </span>
+                        </div>
+                        <p className="mt-0.5 text-[10px] text-zinc-500 text-right">
+                            (RTO: ₹{roadTax.toLocaleString("en-IN")} + Ins: ₹{insurance.toLocaleString("en-IN")})
+                        </p>
+                    </div>
+
+                    {/* Specifications Grid */}
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div className="bg-[#0d0d0d] rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] text-zinc-500 font-semibold uppercase">
+                                {isEV ? "Range" : "Engine"}
+                            </p>
+                            <p className="font-bold text-xs mt-0.5 text-white truncate">
+                                {engineText}
+                            </p>
+                        </div>
+                        <div className="bg-[#0d0d0d] rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] text-zinc-500 font-semibold uppercase">
+                                {isEV ? "Battery" : "Mileage"}
+                            </p>
+                            <p className="font-bold text-xs mt-0.5 text-white truncate">
+                                {mileageText}
+                            </p>
+                        </div>
+                        <div className="bg-[#0d0d0d] rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] text-zinc-500 font-semibold uppercase">
+                                Power
+                            </p>
+                            <p className="font-bold text-xs mt-0.5 text-white truncate">
+                                {powerText}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                    <FaStar /> {bike.rating}
-                </span>
-            </div>
+                {/* ACTION BUTTONS */}
+                <div className="flex gap-2.5 mt-5 pt-4 border-t border-white/[0.06]">
+                    <Button
+                        primary
+                        onClick={() => navigate(bike._id ? `/motorcycles/${bike._id}` : "/motorcycles")}
+                        className="flex-1 text-sm font-bold py-2.5"
+                    >
+                        View Details
+                    </Button>
 
-            <p className="text-2xl font-black mt-5">
-                {priceText}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 mt-5">
-                <div className="bg-[#0d0d0d] rounded-lg p-3">
-                    <p className="text-xs text-gray-500">
-                        {isEV ? "Range" : "Engine"}
-                    </p>
-
-                    <p className="font-semibold mt-1">
-                        {engineText}
-                    </p>
+                    <Button
+                        onClick={() => navigate(`/compare?id=${bike._id}`)}
+                        aria-label={`Compare ${bike.name}`}
+                        className="w-12 px-0 flex items-center justify-center text-zinc-400 hover:text-orange-500"
+                    >
+                        <FaExchangeAlt aria-hidden="true" />
+                    </Button>
                 </div>
-
-                <div className="bg-[#0d0d0d] rounded-lg p-3">
-                    <p className="text-xs text-gray-500">
-                        {isEV ? "Battery" : "Mileage"}
-                    </p>
-
-                    <p className="font-semibold mt-1">
-                        {mileageText}
-                    </p>
-                </div>
-            </div>
-
-            <div className="mt-5 p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl">
-                <div className="flex items-center gap-2 text-orange-500 text-sm font-semibold">
-                    <FaRobot />
-                    Why AI picked this
-                </div>
-
-                <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-                    Great balance of performance, practicality and
-                    value for everyday riders.
-                </p>
-            </div>
-
-            <div className="flex gap-3 mt-5">
-                <Button
-                    primary
-                    onClick={() => navigate(bike._id ? `/motorcycles/${bike._id}` : "/motorcycles")}
-                    className="flex-1"
-                >
-                    View Details
-                </Button>
-
-                <Button
-                    onClick={() => navigate("/compare")}
-                    aria-label={`Compare ${bike.name}`}
-                    className="w-12 px-0 flex items-center justify-center"
-                >
-                    <FaExchangeAlt aria-hidden="true" />
-                </Button>
             </div>
         </div>
-    </div>
     );
 };
 
@@ -488,7 +639,8 @@ function Homepage() {
                             ["Motorcycles", "/motorcycles"],
                             ["AI Advisor", "/ai-advisor"],
                             ["AI Plan", "/ai-plan"],
-                            ["Compare", "/compare"]
+                            ["Compare", "/compare"],
+                            ["Impact", "/impact"]
                         ].map(([label, path], index) => (
                             <button
                                 key={label}
@@ -639,6 +791,7 @@ function Homepage() {
                             ["AI Advisor", "/ai-advisor"],
                             ["AI Plan", "/ai-plan"],
                             ["Compare", "/compare"],
+                            ["Impact", "/impact"],
                             ...(currentUser
                                 ? [["My Dashboard", dashboardPath]]
                                 : [["Login", "/login"], ["Get Started", "/register"]]),

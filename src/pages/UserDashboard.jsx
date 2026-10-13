@@ -24,6 +24,10 @@ import {
     Lock,
     AlertTriangle,
     ChevronRight,
+    Star,
+    ExternalLink,
+    ShoppingBag,
+    MapPin,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
@@ -47,8 +51,13 @@ import {
     getSubscriptionHistory,
     getSubscriptionStatus,
     getChats,
+    getMyOrders,
+    cancelOrder,
     renameChat,
     deleteChat,
+    getMyReviews,
+    deleteReview,
+    updateReview,
 } from "../services/api";
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -70,6 +79,8 @@ const NAV = [
     { id: "favorites", label: "My Favorites", icon: Heart },
     { id: "comparisons", label: "Comparisons", icon: GitCompare },
     { id: "subscriptions", label: "My Subscriptions", icon: IndianRupee },
+    { id: "reviews", label: "My Reviews", icon: Star },
+    { id: "orders", label: "My Orders", icon: ShoppingBag },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -1831,6 +1842,492 @@ const PlanSection = ({ navigate }) => {
 };
 
 // ==============================
+// MY REVIEWS
+// ==============================
+const ReviewsSection = ({ navigate }) => {
+    const [reviews, setReviews] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [editingReview, setEditingReview] = useState(null);
+    const [editForm, setEditForm] = useState({ rating: 0, comment: "" });
+    const [submitting, setSubmitting] = useState(false);
+
+    const load = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await getMyReviews();
+            setReviews(data.reviews || []);
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 401)) {
+                setError(err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const openEdit = (review) => {
+        setEditingReview(review);
+        setEditForm({ rating: review.rating, comment: review.comment });
+    };
+
+    const closeEdit = () => {
+        setEditingReview(null);
+        setEditForm({ rating: 0, comment: "" });
+    };
+
+    const submitEdit = async () => {
+        if (!editForm.rating || editForm.rating < 1 || editForm.rating > 5) {
+            alert("Please select a rating between 1 and 5.");
+            return;
+        }
+        if (!editForm.comment.trim()) {
+            alert("Please write a comment.");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await updateReview(editingReview._id, {
+                rating: editForm.rating,
+                comment: editForm.comment.trim(),
+            });
+            closeEdit();
+            await load();
+        } catch (err) {
+            alert(err.message || "Failed to update review.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (reviewId) => {
+        if (!window.confirm("Delete this review permanently?")) return;
+        try {
+            await deleteReview(reviewId);
+            await load();
+        } catch (err) {
+            alert(err.message || "Failed to delete review.");
+        }
+    };
+
+    const getMotorcycleImage = (bike) => {
+        if (bike?.images && bike.images.length > 0) return bike.images[0].url;
+        return bike?.image || "";
+    };
+
+    return (
+        <div>
+            <SectionTitle
+                title="My Reviews"
+                subtitle="All your motorcycle reviews, stored in MongoDB."
+            />
+            {error && (
+                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                </div>
+            )}
+            {loading ? (
+                <Loading text="Loading your reviews..." />
+            ) : reviews.length === 0 ? (
+                <EmptyBox
+                    icon={<Star size={26} />}
+                    title="No reviews yet"
+                    subtitle="Share your experience by reviewing motorcycles you've ridden."
+                    action={
+                        <Link
+                            to="/motorcycles"
+                            className="mt-5 inline-block rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:bg-orange-400"
+                        >
+                            Explore Motorcycles
+                        </Link>
+                    }
+                />
+            ) : (
+                <div className="space-y-4">
+                    {reviews.map((review) => {
+                        const bike = review.motorcycle;
+                        return (
+                            <div
+                                key={review._id}
+                                className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 transition hover:border-orange-500/20"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <button
+                                        onClick={() =>
+                                            bike?._id &&
+                                            navigate(`/motorcycles/${bike._id}`)
+                                        }
+                                        className="shrink-0"
+                                    >
+                                        {getMotorcycleImage(bike) ? (
+                                            <img
+                                                src={getMotorcycleImage(bike)}
+                                                alt={bike?.name || "Motorcycle"}
+                                                className="h-20 w-20 rounded-xl object-cover"
+                                            />
+                                        ) : (
+                                            <div className="h-20 w-20 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                                <BrandLogo
+                                                    brand={bike?.brand || ""}
+                                                    brandLogo={bike?.brandLogo || ""}
+                                                    size={32}
+                                                />
+                                            </div>
+                                        )}
+                                    </button>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-orange-500">
+                                                    {bike?.brand || "Unknown"}
+                                                </p>
+                                                <p className="font-bold truncate">
+                                                    {bike?.name || "Unknown Motorcycle"}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-0.5 shrink-0">
+                                                {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star
+                                                        key={s}
+                                                        size={14}
+                                                        className={
+                                                            s <= review.rating
+                                                                ? "fill-orange-400 text-orange-400"
+                                                                : "text-zinc-600"
+                                                        }
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
+                                            {review.comment}
+                                        </p>
+
+                                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                                            <span className="text-xs text-zinc-500">
+                                                {new Date(review.createdAt).toLocaleDateString(
+                                                    "en-IN",
+                                                    {
+                                                        day: "numeric",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                    }
+                                                )}
+                                            </span>
+                                            <button
+                                                onClick={() => openEdit(review)}
+                                                className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition hover:border-orange-500/40 hover:text-orange-400"
+                                            >
+                                                <Pencil size={11} />
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(review._id)}
+                                                className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition hover:border-red-500/40 hover:text-red-400"
+                                            >
+                                                <Trash2 size={11} />
+                                                Delete
+                                            </button>
+                                            {bike?._id && (
+                                                <button
+                                                    onClick={() =>
+                                                        navigate(`/motorcycles/${bike._id}`)
+                                                    }
+                                                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition hover:border-orange-500/40 hover:text-orange-400"
+                                                >
+                                                    <ExternalLink size={11} />
+                                                    View
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Edit Review Modal */}
+            {editingReview && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0c0c0c] p-6 sm:p-8">
+                        <h3 className="text-xl font-black mb-6">Edit Review</h3>
+
+                        <div className="flex items-center gap-2 mb-5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                                <button
+                                    key={s}
+                                    onClick={() =>
+                                        setEditForm((f) => ({ ...f, rating: s }))
+                                    }
+                                    className="transition hover:scale-110"
+                                >
+                                    <Star
+                                        size={28}
+                                        className={
+                                            s <= editForm.rating
+                                                ? "fill-orange-400 text-orange-400"
+                                                : "text-zinc-600"
+                                        }
+                                    />
+                                </button>
+                            ))}
+                            <span className="ml-2 text-sm text-zinc-500">
+                                {editForm.rating > 0
+                                    ? `${editForm.rating}/5`
+                                    : "Select rating"}
+                            </span>
+                        </div>
+
+                        <textarea
+                            value={editForm.comment}
+                            onChange={(e) =>
+                                setEditForm((f) => ({
+                                    ...f,
+                                    comment: e.target.value,
+                                }))
+                            }
+                            rows={4}
+                            maxLength={1000}
+                            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50 resize-none"
+                        />
+                        <p className="text-xs text-zinc-600 mt-1 text-right">
+                            {editForm.comment.length}/1000
+                        </p>
+
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={submitEdit}
+                                disabled={submitting}
+                                className="flex-1 rounded-xl bg-orange-500 py-3 text-sm font-bold text-black transition hover:bg-orange-400 disabled:opacity-50"
+                            >
+                                {submitting ? "Updating..." : "Update Review"}
+                            </button>
+                            <button
+                                onClick={closeEdit}
+                                className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-white/5"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ==============================
+// MY ORDERS
+// ==============================
+const OrdersSection = ({ navigate }) => {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const load = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await getMyOrders();
+            setOrders(data.orders || []);
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 401)) {
+                setError(err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const handleCancel = async (orderId) => {
+        if (!window.confirm("Cancel this order?")) return;
+        try {
+            await cancelOrder(orderId);
+            await load();
+        } catch (err) {
+            alert(err.message || "Failed to cancel order.");
+        }
+    };
+
+    const statusBadge = (s) => {
+        const base = "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider";
+        switch (s) {
+            case "paid": return `${base} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20`;
+            case "payment_pending": return `${base} bg-yellow-500/10 text-yellow-400 border border-yellow-500/20`;
+            case "failed": return `${base} bg-red-500/10 text-red-400 border border-red-500/20`;
+            case "cancelled": return `${base} bg-zinc-500/10 text-zinc-500 border border-zinc-500/20`;
+            default: return `${base} bg-white/5 text-zinc-400 border border-white/10`;
+        }
+    };
+
+    return (
+        <div>
+            <SectionTitle
+                title="My Orders"
+                subtitle="Your motorcycle purchase history."
+            />
+            {error && (
+                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                </div>
+            )}
+            {loading ? (
+                <Loading text="Loading orders..." />
+            ) : orders.length === 0 ? (
+                <EmptyBox
+                    icon={<ShoppingBag size={26} />}
+                    title="No orders yet"
+                    subtitle="Browse motorcycles and place your first order."
+                    action={
+                        <Link
+                            to="/motorcycles"
+                            className="mt-5 inline-block rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:bg-orange-400"
+                        >
+                            Explore Motorcycles
+                        </Link>
+                    }
+                />
+            ) : (
+                <div className="space-y-4">
+                    {orders.map((order) => {
+                        const bike = order.motorcycle;
+                        const bikeImage = bike?.images?.[0]?.url || bike?.image || "";
+                        return (
+                            <div
+                                key={order._id}
+                                className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 transition hover:border-orange-500/20"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <button
+                                        onClick={() =>
+                                            bike?._id &&
+                                            navigate(`/motorcycles/${bike._id}`)
+                                        }
+                                        className="shrink-0"
+                                    >
+                                        {bikeImage ? (
+                                            <img
+                                                src={bikeImage}
+                                                alt={bike?.name || "Motorcycle"}
+                                                className="h-20 w-20 rounded-xl object-cover"
+                                            />
+                                        ) : (
+                                            <div className="h-20 w-20 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                                <BrandLogo
+                                                    brand={bike?.brand || ""}
+                                                    brandLogo={bike?.brandLogo || ""}
+                                                    size={32}
+                                                />
+                                            </div>
+                                        )}
+                                    </button>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-orange-500">
+                                                    {bike?.brand || "Unknown"}
+                                                </p>
+                                                <p className="font-bold truncate">
+                                                    {bike?.name || "Unknown Motorcycle"}
+                                                </p>
+                                                {order.variantName && (
+                                                    <p className="text-xs font-semibold text-orange-400 mt-0.5">
+                                                        {order.variantName} Variant
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <span className={statusBadge(order.status)}>
+                                                {order.status.replace("_", " ")}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                                            <span className="flex items-center gap-1">
+                                                <MapPin size={11} />
+                                                {order.city}
+                                            </span>
+                                            <span>
+                                                {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                                                    day: "numeric",
+                                                    month: "short",
+                                                    year: "numeric",
+                                                })}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                            <span className="text-zinc-400">
+                                                Ex-showroom: <span className="font-semibold text-white">₹{Number(order.exShowroomPrice || 0).toLocaleString("en-IN")}</span>
+                                            </span>
+                                            <span className="text-zinc-400">
+                                                On-road: <span className="font-semibold text-white">₹{Number(order.onRoadPrice || 0).toLocaleString("en-IN")}</span>
+                                            </span>
+                                            <span className="text-zinc-400">
+                                                Total: <span className="font-bold text-orange-400">₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}</span>
+                                            </span>
+                                        </div>
+
+                                        {order.paymentId && (
+                                            <p className="mt-2 text-xs text-zinc-600 font-mono">
+                                                Payment: {order.paymentId}
+                                            </p>
+                                        )}
+
+                                        <div className="mt-3 flex items-center gap-2">
+                                            {order.status === "pending" || order.status === "payment_pending" ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => navigate(`/payment/${order._id}`)}
+                                                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-black transition hover:bg-orange-400"
+                                                    >
+                                                        Pay Now
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleCancel(order._id)}
+                                                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-red-500/40 hover:text-red-400"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </>
+                                            ) : null}
+                                            {bike?._id && (
+                                                <button
+                                                    onClick={() =>
+                                                        navigate(`/motorcycles/${bike._id}`)
+                                                    }
+                                                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition hover:border-orange-500/40 hover:text-orange-400"
+                                                >
+                                                    <ExternalLink size={11} />
+                                                    View
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ==============================
 // SHELL
 // ==============================
 export default function UserDashboard({ section = "dashboard" }) {
@@ -2019,6 +2516,12 @@ export default function UserDashboard({ section = "dashboard" }) {
                     )}
                     {section === "plan" && (
                         <PlanSection navigate={navigate} />
+                    )}
+                    {section === "reviews" && (
+                        <ReviewsSection navigate={navigate} />
+                    )}
+                    {section === "orders" && (
+                        <OrdersSection navigate={navigate} />
                     )}
                     {section === "notifications" && (
                         <NotificationsSection />

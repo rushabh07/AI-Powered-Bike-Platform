@@ -187,6 +187,18 @@ export default function Navbar({ activeTab, showTokens = true }) {
                         </Link>
                     )}
 
+                    {/* Admin Dashboard Quick Access */}
+                    {currentUser?.role === "admin" && (
+                        <Link
+                            to="/admin"
+                            className="hidden sm:flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/20"
+                            title="Return to Admin Dashboard"
+                        >
+                            <LayoutDashboard size={13} />
+                            Admin Dashboard
+                        </Link>
+                    )}
+
                     {/* User Profile / Menu */}
                     {currentUser ? (
                         <div className="relative">
@@ -224,7 +236,7 @@ export default function Navbar({ activeTab, showTokens = true }) {
                                             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-orange-500/10 hover:text-orange-400"
                                         >
                                             <LayoutDashboard size={14} />
-                                            My Dashboard
+                                            {currentUser?.role === "admin" ? "Admin Dashboard" : "My Dashboard"}
                                         </Link>
                                         {(currentUser?.role === "user" ||
                                             currentUser?.role === "customer") && (

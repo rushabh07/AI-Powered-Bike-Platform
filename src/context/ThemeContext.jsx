@@ -14,6 +14,11 @@ function getInitialTheme() {
     } catch {
         /* ignore */
     }
+    if (typeof window !== "undefined" && window.matchMedia) {
+        return window.matchMedia("(prefers-color-scheme: light)").matches
+            ? "light"
+            : "dark";
+    }
     return "dark";
 }
 
@@ -31,6 +36,23 @@ export const ThemeProvider = ({ children }) => {
             /* ignore */
         }
     }, [theme]);
+
+    useEffect(() => {
+        if (!window.matchMedia) return;
+        const mq = window.matchMedia("(prefers-color-scheme: light)");
+        const handler = (e) => {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (!stored) {
+                    setTheme(e.matches ? "light" : "dark");
+                }
+            } catch {
+                /* ignore */
+            }
+        };
+        mq.addEventListener("change", handler);
+        return () => mq.removeEventListener("change", handler);
+    }, []);
 
     const toggleTheme = useCallback(() => {
         setTheme((prev) => (prev === "dark" ? "light" : "dark"));

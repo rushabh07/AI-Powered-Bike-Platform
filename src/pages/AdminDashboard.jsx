@@ -24,10 +24,15 @@ import {
     MapPin,
     LogOut,
     Users,
-    ShieldCheck
+    ShieldCheck,
+    Crown,
+    ShoppingCart,
+    CheckCircle,
+    Clock,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
+import { optimizeThumbnail } from "../utils/imageOptimizer";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
 const ADMIN_API = "http://localhost:5000/api/admin";
@@ -65,6 +70,730 @@ const CATEGORY_OPTIONS = [
     "Commuter",
     "Electric",
 ];
+
+const VariantsSection = ({ motorcycles, apiUrl }) => {
+    const [selectedBike, setSelectedBike] = useState("");
+    const [variants, setVariants] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [editingVariant, setEditingVariant] = useState(null);
+    const [form, setForm] = useState({
+        variantName: "",
+        variantCode: "",
+        exShowroomPrice: "",
+        engine: "",
+        power: "",
+        torque: "",
+        mileage: "",
+        fuel: "Petrol",
+        transmission: "Manual",
+        weight: "",
+        features: "",
+        imageUrl: "",
+        imageLabel: "Variant",
+        cityPrices: [],
+        isAvailable: true,
+    });
+    const [saving, setSaving] = useState(false);
+    const [msg, setMsg] = useState("");
+
+    const emptyForm = {
+        variantName: "",
+        variantCode: "",
+        exShowroomPrice: "",
+        engine: "",
+        power: "",
+        torque: "",
+        mileage: "",
+        fuel: "Petrol",
+        transmission: "Manual",
+        weight: "",
+        features: "",
+        imageUrl: "",
+        imageLabel: "Variant",
+        cityPrices: [],
+        isAvailable: true,
+    };
+
+    const fetchVariants = async (bikeId) => {
+        if (!bikeId) return;
+        setLoading(true);
+        try {
+            const res = await fetch(`${apiUrl}/variants/motorcycles/${bikeId}`);
+            const data = await res.json();
+            setVariants(data.variants || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedBike) fetchVariants(selectedBike);
+        else setVariants([]);
+    }, [selectedBike]);
+
+    const resetForm = () => {
+        setForm(emptyForm);
+        setEditingVariant(null);
+        setShowForm(false);
+    };
+
+    const openEdit = (v) => {
+        setEditingVariant(v);
+        setForm({
+            variantName: v.variantName || "",
+            variantCode: v.variantCode || "",
+            exShowroomPrice: v.exShowroomPrice || "",
+            engine: v.engine || "",
+            power: v.power || "",
+            torque: v.torque || "",
+            mileage: v.mileage || "",
+            fuel: v.fuel || "Petrol",
+            transmission: v.transmission || "Manual",
+            weight: v.weight || "",
+            features: (v.features || []).join(", "),
+            imageUrl: v.images?.[0]?.url || "",
+            imageLabel: v.images?.[0]?.label || "Variant",
+            cityPrices: (v.cityPrices || []).map((cp) => ({ ...cp })),
+            isAvailable: v.isAvailable !== false,
+        });
+        setShowForm(true);
+    };
+
+    const addCity = () => {
+        setForm((prev) => ({
+            ...prev,
+            cityPrices: [...prev.cityPrices, { city: "", roadTax: "" }],
+        }));
+    };
+
+    const removeCity = (index) => {
+        setForm((prev) => ({
+            ...prev,
+            cityPrices: prev.cityPrices.filter((_, i) => i !== index),
+        }));
+    };
+
+    const updateCity = (index, field, value) => {
+        setForm((prev) => ({
+            ...prev,
+            cityPrices: prev.cityPrices.map((cp, i) =>
+                i === index ? { ...cp, [field]: field === "roadTax" ? (value === "" ? "" : Number(value)) : value } : cp
+            ),
+        }));
+    };
+
+    const handleSave = async () => {
+        if (!form.variantName.trim()) {
+            setMsg("Variant name is required.");
+            return;
+        }
+        if (!form.exShowroomPrice || Number(form.exShowroomPrice) <= 0) {
+            setMsg("Valid price is required.");
+            return;
+        }
+        const validCities = form.cityPrices.filter((cp) => cp.city.trim() && cp.roadTax !== "" && Number(cp.roadTax) > 0);
+        if (validCities.length === 0) {
+            setMsg("Add at least one city with road tax.");
+            return;
+        }
+        setSaving(true);
+        setMsg("");
+        try {
+            const payload = {
+                motorcycle: selectedBike,
+                variantName: form.variantName.trim(),
+                variantCode: form.variantCode.trim(),
+                exShowroomPrice: Number(form.exShowroomPrice),
+                engine: Number(form.engine) || 0,
+                power: Number(form.power) || 0,
+                torque: form.torque ? Number(form.torque) : null,
+                mileage: Number(form.mileage) || 0,
+                fuel: form.fuel,
+                transmission: form.transmission,
+                weight: form.weight ? Number(form.weight) : null,
+                features: form.features.split(",").map((f) => f.trim()).filter(Boolean),
+                images: form.imageUrl.trim() ? [{ url: form.imageUrl.trim(), label: form.imageLabel.trim() || "Variant" }] : [],
+                cityPrices: validCities.map((cp) => ({ city: cp.city.trim(), roadTax: Number(cp.roadTax) })),
+                isAvailable: form.isAvailable,
+            };
+            const res = await fetch(
+                editingVariant ? `${apiUrl}/variants/${editingVariant._id}` : `${apiUrl}/variants`,
+                {
+                    method: editingVariant ? "PUT" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                    body: JSON.stringify(payload),
+                }
+            );
+            const data = await res.json();
+            if (!res.ok) {
+                setMsg(data.message || "Failed to save variant.");
+                return;
+            }
+            setMsg(editingVariant ? "Variant updated." : "Variant created.");
+            resetForm();
+            fetchVariants(selectedBike);
+        } catch (err) {
+            setMsg("Failed to save variant.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (variantId) => {
+        if (!window.confirm("Delete this variant?")) return;
+        try {
+            const res = await fetch(`${apiUrl}/variants/${variantId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+            });
+            if (res.ok) {
+                setMsg("Variant deleted.");
+                fetchVariants(selectedBike);
+            }
+        } catch (err) {
+            setMsg("Failed to delete variant.");
+        }
+    };
+
+    const toggleAvailability = async (v) => {
+        try {
+            await fetch(`${apiUrl}/variants/${v._id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+                body: JSON.stringify({ isAvailable: !v.isAvailable }),
+            });
+            fetchVariants(selectedBike);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    return (
+        <section>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold">Variant Management</h2>
+                    <p className="text-sm text-zinc-500">
+                        Create and manage motorcycle variants.
+                    </p>
+                </div>
+                <button
+                    onClick={() => { resetForm(); setShowForm(true); }}
+                    disabled={!selectedBike}
+                    className="flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400 disabled:opacity-40"
+                >
+                    <Plus size={16} />
+                    Add Variant
+                </button>
+            </div>
+
+            {msg && (
+                <div className="mb-4 rounded-xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 text-sm text-orange-300">
+                    {msg}
+                </div>
+            )}
+
+            <div className="mb-6">
+                <label className="block text-xs font-semibold text-zinc-400 mb-2">
+                    Select Motorcycle
+                </label>
+                <select
+                    value={selectedBike}
+                    onChange={(e) => setSelectedBike(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50 appearance-none cursor-pointer"
+                    style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "right 12px center",
+                    }}
+                >
+                    <option value="" className="bg-[#111] text-white">Choose a motorcycle</option>
+                    {motorcycles.map((m) => (
+                        <option key={m._id} value={m._id} className="bg-[#111] text-white">
+                            {m.brand} {m.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {showForm && (
+                <div className="mb-6 rounded-2xl border border-white/10 bg-[#0c0c0c] p-6">
+                    <h3 className="font-bold mb-4">
+                        {editingVariant ? "Edit Variant" : "New Variant"}
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Variant Name *
+                            <input
+                                value={form.variantName}
+                                onChange={(e) => setForm({ ...form, variantName: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Variant Code
+                            <input
+                                value={form.variantCode}
+                                onChange={(e) => setForm({ ...form, variantCode: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Ex-showroom Price *
+                            <input
+                                type="number"
+                                value={form.exShowroomPrice}
+                                onChange={(e) => setForm({ ...form, exShowroomPrice: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Engine (CC)
+                            <input
+                                type="number"
+                                value={form.engine}
+                                onChange={(e) => setForm({ ...form, engine: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Power (HP)
+                            <input
+                                type="number"
+                                value={form.power}
+                                onChange={(e) => setForm({ ...form, power: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Torque (Nm)
+                            <input
+                                type="number"
+                                value={form.torque}
+                                onChange={(e) => setForm({ ...form, torque: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Mileage (km/l)
+                            <input
+                                type="number"
+                                value={form.mileage}
+                                onChange={(e) => setForm({ ...form, mileage: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Weight (kg)
+                            <input
+                                type="number"
+                                value={form.weight}
+                                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Features (comma separated)
+                            <input
+                                value={form.features}
+                                onChange={(e) => setForm({ ...form, features: e.target.value })}
+                                placeholder="ABS, LED, Digital Console"
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Image URL
+                            <input
+                                value={form.imageUrl}
+                                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                                placeholder="https://..."
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">
+                            Image Label
+                            <input
+                                value={form.imageLabel}
+                                onChange={(e) => setForm({ ...form, imageLabel: e.target.value })}
+                                placeholder="Front, Side, Rear"
+                                className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                            />
+                        </label>
+                    </div>
+
+                    {/* City-wise Road Tax */}
+                    <div className="mt-5">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs font-semibold text-zinc-400">
+                                City-wise Road Tax *
+                            </p>
+                            <button
+                                onClick={addCity}
+                                className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-zinc-400 transition hover:border-orange-500/40 hover:text-orange-400"
+                            >
+                                <Plus size={12} />
+                                Add City
+                            </button>
+                        </div>
+                        {form.cityPrices.length === 0 ? (
+                            <p className="text-xs text-zinc-600 py-2">
+                                No cities added. Click "Add City" to set road tax per city.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {form.cityPrices.map((cp, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <input
+                                            value={cp.city}
+                                            onChange={(e) => updateCity(i, "city", e.target.value)}
+                                            placeholder="City name"
+                                            className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                                        />
+                                        <input
+                                            type="number"
+                                            value={cp.roadTax}
+                                            onChange={(e) => updateCity(i, "roadTax", e.target.value)}
+                                            placeholder="Road Tax (₹)"
+                                            className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                                        />
+                                        <button
+                                            onClick={() => removeCity(i)}
+                                            aria-label="Remove city"
+                                            className="rounded-lg p-2 text-zinc-500 transition hover:bg-red-500/10 hover:text-red-400"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm text-zinc-400">
+                            <input
+                                type="checkbox"
+                                checked={form.isAvailable}
+                                onChange={(e) => setForm({ ...form, isAvailable: e.target.checked })}
+                                className="rounded"
+                            />
+                            Available
+                        </label>
+                    </div>
+                    <div className="mt-5 flex gap-3">
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400 disabled:opacity-50"
+                        >
+                            <Save size={15} />
+                            {saving ? "Saving..." : "Save Variant"}
+                        </button>
+                        <button
+                            onClick={resetForm}
+                            className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-white/5"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500/30 border-t-orange-500" />
+                </div>
+            ) : variants.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+                    <Gauge size={32} className="mx-auto text-zinc-600 mb-3" />
+                    <p className="text-zinc-500">
+                        {selectedBike
+                            ? "No variants found. Create one above."
+                            : "Select a motorcycle to manage variants."}
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {variants.map((v) => (
+                        <div
+                            key={v._id}
+                            className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-4"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold">{v.variantName}</p>
+                                        {v.variantCode && (
+                                            <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] font-bold text-zinc-400">
+                                                {v.variantCode}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm font-bold text-orange-400 mt-1">
+                                        ₹{Number(v.exShowroomPrice).toLocaleString("en-IN")}
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+                                        {v.engine > 0 && <span>{v.engine} CC</span>}
+                                        {v.power > 0 && <span>{v.power} HP</span>}
+                                        {v.mileage > 0 && <span>{v.mileage} km/l</span>}
+                                        {v.fuel && <span>{v.fuel}</span>}
+                                    </div>
+                                    {v.features && v.features.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-1">
+                                            {v.features.slice(0, 4).map((f) => (
+                                                <span
+                                                    key={f}
+                                                    className="rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold text-orange-400"
+                                                >
+                                                    {f}
+                                                </span>
+                                            ))}
+                                            {v.features.length > 4 && (
+                                                <span className="text-[10px] text-zinc-500">
+                                                    +{v.features.length - 4} more
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                    {v.cityPrices && v.cityPrices.length > 0 && (
+                                        <p className="mt-2 text-[10px] text-zinc-600">
+                                            {v.cityPrices.length} cities configured
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={() => toggleAvailability(v)}
+                                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                                            v.isAvailable
+                                                ? "bg-emerald-500/10 text-emerald-400"
+                                                : "bg-zinc-500/10 text-zinc-500"
+                                        }`}
+                                    >
+                                        {v.isAvailable ? "Active" : "Disabled"}
+                                    </button>
+                                    <button
+                                        onClick={() => openEdit(v)}
+                                        aria-label="Edit variant"
+                                        className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/5 hover:text-white"
+                                    >
+                                        <Pencil size={15} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(v._id)}
+                                        aria-label="Delete variant"
+                                        className="rounded-lg p-2 text-zinc-400 transition hover:bg-red-500/10 hover:text-red-400"
+                                    >
+                                        <Trash2 size={15} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+};
+
+const ReviewsSection = ({ apiUrl }) => {
+    const [reviews, setReviews] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [search, setSearch] = useState("");
+    const [deleting, setDeleting] = useState("");
+
+    const fetchReviews = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const res = await fetch(`${apiUrl}/reviews`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || "Failed to load reviews");
+            }
+            setReviews(data.reviews || []);
+        } catch (err) {
+            setError(err.message || "Unable to load reviews.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
+    }, []);
+
+    const handleDelete = async (reviewId) => {
+        if (!window.confirm("Delete this review permanently?")) return;
+        setDeleting(reviewId);
+        try {
+            const res = await fetch(`${apiUrl}/reviews/${reviewId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || "Failed to delete");
+            }
+            setReviews((prev) => prev.filter((r) => r._id !== reviewId));
+        } catch (err) {
+            alert(err.message || "Failed to delete review.");
+        } finally {
+            setDeleting("");
+        }
+    };
+
+    const filteredReviews = reviews.filter((r) => {
+        const q = search.toLowerCase();
+        if (!q) return true;
+        return (
+            r.user?.name?.toLowerCase().includes(q) ||
+            r.user?.email?.toLowerCase().includes(q) ||
+            r.motorcycle?.name?.toLowerCase().includes(q) ||
+            r.motorcycle?.brand?.toLowerCase().includes(q) ||
+            r.comment?.toLowerCase().includes(q)
+        );
+    });
+
+    return (
+        <section>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold">Review Management</h2>
+                    <p className="text-sm text-zinc-500">
+                        Moderate and manage user reviews.
+                    </p>
+                </div>
+                <button
+                    onClick={fetchReviews}
+                    disabled={loading}
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold transition hover:bg-white/10 disabled:opacity-50"
+                >
+                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                    {loading ? "Refreshing..." : "Refresh"}
+                </button>
+            </div>
+
+            {error && (
+                <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 flex items-center justify-between">
+                    <span>{error}</span>
+                    <button
+                        onClick={fetchReviews}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold hover:border-orange-500/40 hover:text-orange-400 transition"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+            <div className="mb-6">
+                <div className="relative">
+                    <Search
+                        size={18}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search by user, motorcycle, or comment..."
+                        className="w-full rounded-xl border border-white/10 bg-[#111] py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-orange-500/50"
+                    />
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500/30 border-t-orange-500" />
+                </div>
+            ) : filteredReviews.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-10 text-center">
+                    <Star size={32} className="mx-auto text-zinc-600 mb-3" />
+                    <p className="text-zinc-500">
+                        {search ? "No reviews match your search." : "No reviews found."}
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {filteredReviews.map((r) => (
+                        <div
+                            key={r._id}
+                            className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-9 h-9 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 font-bold text-sm shrink-0">
+                                            {r.user?.name?.charAt(0)?.toUpperCase() || "?"}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-sm truncate">
+                                                {r.user?.name || "Unknown User"}
+                                            </p>
+                                            <p className="text-xs text-zinc-500 truncate">
+                                                {r.user?.email || "—"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-0.5">
+                                            {[1, 2, 3, 4, 5].map((s) => (
+                                                <Star
+                                                    key={s}
+                                                    size={13}
+                                                    className={
+                                                        s <= r.rating
+                                                            ? "fill-orange-400 text-orange-400"
+                                                            : "text-zinc-600"
+                                                    }
+                                                />
+                                            ))}
+                                        </div>
+                                        <span className="text-xs text-zinc-500">
+                                            {new Date(r.createdAt).toLocaleDateString("en-IN", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                            })}
+                                        </span>
+                                    </div>
+                                    {r.motorcycle && (
+                                        <p className="text-xs font-semibold text-orange-500 mb-2">
+                                            {r.motorcycle.brand} {r.motorcycle.name}
+                                        </p>
+                                    )}
+                                    <p className="text-sm text-zinc-300 leading-relaxed">
+                                        {r.comment}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => handleDelete(r._id)}
+                                    disabled={deleting === r._id}
+                                    aria-label="Delete review"
+                                    className="shrink-0 rounded-lg p-2 text-zinc-400 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+};
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -105,7 +834,31 @@ const AdminDashboard = () => {
     const [dbUsers, setDbUsers] = useState([]);
     const [dbLoading, setDbLoading] = useState(false);
 
+    // Dashboard stats state
+    const [dashStats, setDashStats] = useState(null);
+    const [dashStatsLoading, setDashStatsLoading] = useState(true);
+    const [dashStatsError, setDashStatsError] = useState("");
+
     const getToken = () => localStorage.getItem("token");
+
+    const fetchDashboardStats = async () => {
+        setDashStatsLoading(true);
+        setDashStatsError("");
+        try {
+            const res = await fetch(`${ADMIN_API}/dashboard/stats`, {
+                headers: { Authorization: `Bearer ${getToken()}` },
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || "Failed to load stats");
+            }
+            setDashStats(data.stats);
+        } catch (err) {
+            setDashStatsError(err.message || "Unable to load dashboard stats.");
+        } finally {
+            setDashStatsLoading(false);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -244,6 +997,7 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         if (activeTab === "database" && !dbStats) fetchDatabase();
+        if (activeTab === "dashboard") fetchDashboardStats();
     }, [activeTab]);
 
     // --------------------------------------------------
@@ -269,6 +1023,23 @@ const AdminDashboard = () => {
                 )
         );
     }, [motorcycles, search]);
+
+    // --------------------------------------------------
+    // PAGINATION
+    // --------------------------------------------------
+    const ITEMS_PER_PAGE = 8;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalPages = Math.max(1, Math.ceil(filteredMotorcycles.length / ITEMS_PER_PAGE));
+
+    const paginatedMotorcycles = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredMotorcycles.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredMotorcycles, currentPage]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search]);
 
     // --------------------------------------------------
     // STATISTICS
@@ -615,7 +1386,7 @@ const AdminDashboard = () => {
                                 MOTO<span className="text-orange-500">AI</span>
                             </h1>
 
-                            <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500">
+                            <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
                                 Admin
                             </p>
                         </div>
@@ -624,6 +1395,7 @@ const AdminDashboard = () => {
                     <button
                         onClick={() => setSidebarOpen(!sidebarOpen)}
                         className="rounded-xl border border-white/10 p-2"
+                        aria-label="Toggle navigation menu"
                     >
                         <Menu size={21} />
                     </button>
@@ -666,7 +1438,7 @@ const AdminDashboard = () => {
                                     </span>
                                 </h1>
 
-                                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500">
+                                <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
                                     Admin Panel
                                 </p>
                             </div>
@@ -679,6 +1451,8 @@ const AdminDashboard = () => {
                             {[
                                 { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={19} /> },
                                 { id: "motorcycles", label: "Motorcycles", icon: <Bike size={19} /> },
+                                { id: "variants", label: "Variants", icon: <Gauge size={19} /> },
+                                { id: "reviews", label: "Reviews", icon: <Star size={19} /> },
                                 { id: "database", label: "Database", icon: <Database size={19} /> },
                                 { id: "profile", label: "Profile", icon: <User size={19} /> },
                             ].map((item) => {
@@ -719,7 +1493,7 @@ const AdminDashboard = () => {
                                         <p className="truncate text-sm font-semibold">
                                             {admin?.name || "Administrator"}
                                         </p>
-                                        <p className="truncate text-xs text-gray-500">
+                                        <p className="truncate text-xs text-gray-400">
                                             {admin?.email || "MOTOAI Control"}
                                         </p>
                                     </div>
@@ -766,7 +1540,7 @@ const AdminDashboard = () => {
                                     {activeTab === "profile" && "Admin Profile"}
                                 </h2>
 
-                                <p className="mt-2 max-w-xl text-sm text-gray-500">
+                                <p className="mt-2 max-w-xl text-sm text-gray-400">
                                     {activeTab === "dashboard" && "Overview of your MOTOAI platform."}
                                     {activeTab === "motorcycles" && "Manage your MOTOAI motorcycle inventory from one place."}
                                     {activeTab === "database" && "Inspect collections, brand/category breakdown and users."}
@@ -838,32 +1612,86 @@ const AdminDashboard = () => {
                         {/* STAT CARDS — Dashboard tab only */}
 
                         {activeTab === "dashboard" && (
-                        <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="mb-8">
+                            {dashStatsError && (
+                                <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 flex items-center justify-between">
+                                    <span>{dashStatsError}</span>
+                                    <button
+                                        onClick={fetchDashboardStats}
+                                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold hover:border-orange-500/40 hover:text-orange-400 transition"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
+                            )}
 
-                            <StatCard
-                                icon={<Bike size={20} />}
-                                label="Total Motorcycles"
-                                value={stats.total}
-                            />
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                {dashStatsLoading ? (
+                                    <>
+                                        {[...Array(7)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 animate-pulse min-h-[142px]"
+                                            >
+                                                <div className="h-10 w-10 rounded-xl bg-white/5 mb-5" />
+                                                <div className="h-3.5 w-24 bg-white/5 rounded mb-3" />
+                                                <div className="h-7 w-20 bg-white/5 rounded" />
+                                            </div>
+                                        ))}
+                                    </>
+                                ) : dashStats ? (
+                                    <>
+                                        <StatCard
+                                            icon={<Crown size={20} />}
+                                            label="Active Premium Users"
+                                            value={dashStats.activePremiumUsers}
+                                        />
+                                        <StatCard
+                                            icon={<Gauge size={20} />}
+                                            label="Total Variants"
+                                            value={dashStats.totalVariants}
+                                        />
+                                        <StatCard
+                                            icon={<Star size={20} />}
+                                            label="Total Reviews"
+                                            value={dashStats.totalReviews}
+                                        />
+                                        <StatCard
+                                            icon={<ShoppingCart size={20} />}
+                                            label="Total Orders"
+                                            value={dashStats.totalOrders}
+                                        />
+                                        <StatCard
+                                            icon={<CheckCircle size={20} />}
+                                            label="Paid Orders"
+                                            value={dashStats.paidOrders}
+                                        />
+                                        <StatCard
+                                            icon={<Clock size={20} />}
+                                            label="Pending Orders"
+                                            value={dashStats.pendingOrders}
+                                        />
+                                        <StatCard
+                                            icon={<IndianRupee size={20} />}
+                                            label="Total Revenue"
+                                            value={formatPrice(dashStats.totalRevenue)}
+                                        />
+                                    </>
+                                ) : null}
+                            </div>
 
-                            <StatCard
-                                icon={<Database size={20} />}
-                                label="Brands"
-                                value={stats.brands}
-                            />
-
-                            <StatCard
-                                icon={<Star size={20} />}
-                                label="Average Rating"
-                                value={stats.averageRating}
-                            />
-
-                            <StatCard
-                                icon={<IndianRupee size={20} />}
-                                label="Average Price"
-                                value={formatPrice(stats.averagePrice)}
-                            />
-
+                            {dashStats && (
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        onClick={fetchDashboardStats}
+                                        disabled={dashStatsLoading}
+                                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold transition hover:bg-white/10 disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={14} className={dashStatsLoading ? "animate-spin" : ""} />
+                                        {dashStatsLoading ? "Refreshing..." : "Refresh Dashboard"}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         )}
 
@@ -881,7 +1709,7 @@ const AdminDashboard = () => {
                                         Motorcycle Inventory
                                     </h3>
 
-                                    <p className="mt-1 text-xs text-gray-500">
+                                    <p className="mt-1 text-xs text-gray-400">
                                         {filteredMotorcycles.length} motorcycles
                                         found
                                     </p>
@@ -925,16 +1753,56 @@ const AdminDashboard = () => {
 
                             {loading ? (
 
-                                <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
-                                    <Bike size={45} className="mb-4 text-gray-700" />
-
-                                    <h4 className="font-bold text-white">
-                                        No motorcycles found
-                                    </h4>
-
-                                    <p className="mt-2 text-sm text-gray-500">
-                                        Add a motorcycle or change your search.
-                                    </p>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[950px]">
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-gray-400">
+                                                <th className="px-6 py-4">Motorcycle</th>
+                                                <th className="px-6 py-4">Category</th>
+                                                <th className="px-6 py-4">Price</th>
+                                                <th className="px-6 py-4">Engine</th>
+                                                <th className="px-6 py-4">Power</th>
+                                                <th className="px-6 py-4">Rating</th>
+                                                <th className="px-6 py-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {[...Array(6)].map((_, i) => (
+                                                <tr key={i} className="border-b border-white/5 animate-pulse">
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="h-14 w-20 rounded-xl bg-white/5 shrink-0" />
+                                                            <div className="space-y-2">
+                                                                <div className="h-4 w-32 rounded bg-white/5" />
+                                                                <div className="h-3 w-20 rounded bg-white/5" />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="h-6 w-20 rounded-full bg-white/5" />
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="h-5 w-24 rounded bg-white/5" />
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="h-4 w-16 rounded bg-white/5" />
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="h-4 w-16 rounded bg-white/5" />
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="h-4 w-12 rounded bg-white/5" />
+                                                    </td>
+                                                    <td className="px-6 py-5 text-right">
+                                                        <div className="inline-flex gap-2">
+                                                            <div className="h-9 w-9 rounded-lg bg-white/5" />
+                                                            <div className="h-9 w-9 rounded-lg bg-white/5" />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             ) : filteredMotorcycles.length === 0 ? (
 
@@ -949,20 +1817,20 @@ const AdminDashboard = () => {
                                         No motorcycles found
                                     </h4>
 
-                                    <p className="mt-2 text-sm text-gray-500">
+                                    <p className="mt-2 text-sm text-gray-400">
                                         Add a motorcycle or change your search.
                                     </p>
 
                                 </div>
 
                             ) : (
-
+                                <>
                                 <div className="overflow-x-auto">
 
                                     <table className="w-full min-w-[950px]">
 
                                         <thead>
-                                            <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-gray-500">
+                                            <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-gray-400">
 
                                                 <th className="px-6 py-4">
                                                     Motorcycle
@@ -997,7 +1865,7 @@ const AdminDashboard = () => {
 
                                         <tbody>
 
-                                            {filteredMotorcycles.map(
+                                            {paginatedMotorcycles.map(
                                                 (bike) => (
 
                                                     <tr
@@ -1027,8 +1895,12 @@ const AdminDashboard = () => {
 
                                                                     {bike.image ? (
                                                                         <img
-                                                                            src={bike.image}
+                                                                            src={optimizeThumbnail(bike.image, 180)}
                                                                             alt={bike.name}
+                                                                            width="80"
+                                                                            height="56"
+                                                                            loading="lazy"
+                                                                            decoding="async"
                                                                             className="
                                                                                 h-full
                                                                                 w-full
@@ -1155,6 +2027,7 @@ const AdminDashboard = () => {
                                                                         hover:text-orange-500
                                                                     "
                                                                     title="Edit"
+                                                                    aria-label={`Edit ${bike.name}`}
                                                                 >
                                                                     <Pencil
                                                                         size={16}
@@ -1179,6 +2052,7 @@ const AdminDashboard = () => {
                                                                         hover:text-red-400
                                                                     "
                                                                     title="Delete"
+                                                                    aria-label={`Delete ${bike.name}`}
                                                                 >
                                                                     <Trash2
                                                                         size={16}
@@ -1200,9 +2074,86 @@ const AdminDashboard = () => {
 
                                 </div>
 
+                                {totalPages > 1 && (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 px-6 py-4 bg-white/[0.01]">
+                                        <p className="text-xs text-gray-400">
+                                            Showing <span className="font-semibold text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{" "}
+                                            <span className="font-semibold text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredMotorcycles.length)}</span> of{" "}
+                                            <span className="font-semibold text-white">{filteredMotorcycles.length}</span> motorcycles
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                                disabled={currentPage === 1}
+                                                aria-label="Previous page"
+                                                className="flex items-center gap-1 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronLeft size={16} />
+                                                Previous
+                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {[...Array(totalPages)].map((_, i) => {
+                                                    const page = i + 1;
+                                                    if (
+                                                        page === 1 ||
+                                                        page === totalPages ||
+                                                        (page >= currentPage - 1 && page <= currentPage + 1)
+                                                    ) {
+                                                        return (
+                                                            <button
+                                                                key={page}
+                                                                type="button"
+                                                                onClick={() => setCurrentPage(page)}
+                                                                aria-label={`Go to page ${page}`}
+                                                                className={`h-8 w-8 rounded-xl text-xs font-bold transition ${
+                                                                    currentPage === page
+                                                                        ? "bg-orange-500 text-black shadow-lg shadow-orange-500/20"
+                                                                        : "border border-white/10 text-gray-300 hover:bg-white/5"
+                                                                }`}
+                                                            >
+                                                                {page}
+                                                            </button>
+                                                        );
+                                                    }
+                                                    if (page === currentPage - 2 || page === currentPage + 2) {
+                                                        return <span key={page} className="px-1 text-gray-600 text-xs">...</span>;
+                                                    }
+                                                    return null;
+                                                })}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                                disabled={currentPage === totalPages}
+                                                aria-label="Next page"
+                                                className="flex items-center gap-1 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                                Next
+                                                <ChevronRight size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                </>
                             )}
 
                         </section>
+                        )}
+
+                        {/* VARIANTS TAB */}
+                        {activeTab === "variants" && (
+                            <VariantsSection
+                                motorcycles={motorcycles}
+                                apiUrl="http://localhost:5000/api/variants"
+                            />
+                        )}
+
+                        {/* REVIEWS TAB */}
+                        {activeTab === "reviews" && (
+                            <ReviewsSection
+                                apiUrl="http://localhost:5000/api/admin"
+                            />
                         )}
 
                         {/* DATABASE TAB */}
@@ -1287,6 +2238,7 @@ const AdminDashboard = () => {
 
                                 <button
                                     onClick={() => setShowModal(false)}
+                                    aria-label="Close modal"
                                     className="
                                     rounded-xl
                                     border border-white/10
@@ -1781,11 +2733,12 @@ const AdminDashboard = () => {
                                                                         index
                                                                     )
                                                                 }
+                                                                aria-label="Remove image"
                                                                 className="
                                                                 self-start
                                                                 rounded-lg
                                                                 p-2
-                                                                text-gray-500
+                                                                text-gray-400
                                                                 transition
                                                                 hover:bg-red-500/10
                                                                 hover:text-red-400
@@ -1917,7 +2870,7 @@ const StatCard = ({ icon, label, value }) => {
                 {icon}
             </div>
 
-            <p className="text-xs uppercase tracking-wider text-gray-500">
+            <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">
                 {label}
             </p>
 

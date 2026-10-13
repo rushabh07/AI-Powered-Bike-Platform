@@ -1,8 +1,12 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import Homepage from "./pages/Homepage";
 import ProtectedRoute from "./components/ProtectedRoute";
+
+// Route-level code splitting: all pages load on demand
+// so initial bundle is minimal and routes don't cross-contaminate.
+const Homepage = lazy(() => import("./pages/Homepage"));
+const Impact = lazy(() => import("./pages/Impact"));
 
 // Route-level code splitting: heavy pages (dashboards, details)
 // load on demand instead of bloating the initial bundle.
@@ -16,6 +20,10 @@ const AIAdvisor = lazy(() => import("./pages/AIAdvisor"));
 const AIPlan = lazy(() => import("./pages/AIPlan"));
 const Compare = lazy(() => import("./pages/Compare"));
 const UserDashboard = lazy(() => import("./pages/UserDashboard"));
+const MotorcycleCheckout = lazy(() => import("./pages/MotorcycleCheckout"));
+const Payment = lazy(() => import("./pages/Payment"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
+const PaymentFailed = lazy(() => import("./pages/PaymentFailed"));
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-[#070707] text-white flex items-center justify-center">
@@ -34,6 +42,7 @@ function App() {
 
           {/* Public Routes */}
           <Route path="/" element={<Homepage />} />
+          <Route path="/impact" element={<Impact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/motorcycles" element={<Motorcycles />} />
@@ -53,6 +62,8 @@ function App() {
             ["favorites", "favorites"],
             ["comparisons", "comparisons"],
             ["subscriptions", "subscriptions"],
+            ["reviews", "reviews"],
+            ["orders", "orders"],
             ["notifications", "notifications"],
             ["settings", "settings"],
           ].map(([path, section]) => (
@@ -66,6 +77,26 @@ function App() {
               }
             />
           ))}
+
+          {/* Motorcycle Purchase Flow */}
+          <Route
+            path="/motorcycles/:id/checkout"
+            element={
+              <ProtectedRoute allowedRoles={["user", "customer"]}>
+                <MotorcycleCheckout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment/:orderId"
+            element={
+              <ProtectedRoute allowedRoles={["user", "customer"]}>
+                <Payment />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/payment-failed" element={<PaymentFailed />} />
 
           {/* Protected Provider Route — providers and admins allowed */}
           <Route
