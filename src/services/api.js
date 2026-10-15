@@ -287,3 +287,86 @@ export const exportAdminSubscriptionsCsv = async (params = {}) => {
     document.body.removeChild(a);
 };
 
+export const getMotorcycleVariants = async (motorcycleId) => {
+    const response = await fetch(`${API_BASE}/variants/motorcycles/${motorcycleId}`);
+    if (!response.ok) {
+        throw new Error("Failed to fetch variants");
+    }
+    return response.json();
+};
+
+// Bike Enquiries
+export const createBikeEnquiry = (payload) =>
+    apiFetch("/bike-enquiries", { method: "POST", body: JSON.stringify(payload) });
+
+export const getMyBikeEnquiries = () => apiFetch("/bike-enquiries/my");
+
+export const cancelBikeEnquiry = (enquiryId) =>
+    apiFetch(`/bike-enquiries/${enquiryId}/cancel`, { method: "POST" });
+
+// Dealerships
+export const getDealershipsByCity = (city) =>
+    apiFetch(`/dealerships/city/${encodeURIComponent(city)}`);
+
+export const getAdminEnquiryStats = () => apiFetch("/bike-enquiries/admin/stats");
+
+export const getAdminAllEnquiries = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+    const query = qs.toString();
+    return apiFetch(`/bike-enquiries/admin/all${query ? `?${query}` : ""}`);
+};
+
+export const updateAdminEnquiryStatus = (enquiryId, payload) =>
+    apiFetch(`/bike-enquiries/admin/${enquiryId}/status`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+
+// Admin Dealerships
+export const getAdminAllDealerships = () => apiFetch("/dealerships/admin/all");
+
+export const createDealership = (payload) =>
+    apiFetch("/dealerships", { method: "POST", body: JSON.stringify(payload) });
+
+export const updateDealership = (dealershipId, payload) =>
+    apiFetch(`/dealerships/${dealershipId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+
+export const deleteDealership = (dealershipId) =>
+    apiFetch(`/dealerships/${dealershipId}`, { method: "DELETE" });
+
+export const updateMotorcycleColors = (motorcycleId, colors) =>
+    apiFetch(`/motorcycles/${motorcycleId}/colors`, {
+        method: "PUT",
+        body: JSON.stringify({ colors }),
+    });
+
+export const getMotorcycleReviews = async (motorcycleId) => {
+    const response = await fetch(`${API_BASE}/reviews/motorcycle/${motorcycleId}`);
+    if (!response.ok) throw new Error("Failed to fetch reviews");
+    return response.json();
+};
+
+export const getGroupedReviews = async (motorcycleId) => {
+    const response = await fetch(`${API_BASE}/reviews/motorcycle/${motorcycleId}/grouped`);
+    if (!response.ok) throw new Error("Failed to fetch grouped reviews");
+    return response.json();
+};
+
+export const createReview = (payload) =>
+    apiFetch("/reviews", { method: "POST", body: JSON.stringify(payload) });
+
+export const updateReview = (reviewId, payload) =>
+    apiFetch(`/reviews/${reviewId}`, { method: "PUT", body: JSON.stringify(payload) });
+
+export const deleteReview = (reviewId) =>
+    apiFetch(`/reviews/${reviewId}`, { method: "DELETE" });
+
+export const getMyReviews = () => apiFetch("/reviews/my");
+
+export const getReviewEligibility = (motorcycleId) =>
+    apiFetch(`/reviews/motorcycle/${motorcycleId}/eligibility`);
+

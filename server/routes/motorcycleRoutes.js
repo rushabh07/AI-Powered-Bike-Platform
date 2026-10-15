@@ -5,7 +5,8 @@ const {
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,
-    deleteMotorcycle
+    deleteMotorcycle,
+    updateMotorcycleColors,
 } = require("../controllers/motorcycleController");
 
 const protect = require("../middleware/authMiddleware");
@@ -40,6 +41,7 @@ router.post("/", protect, authorize("admin", "provider"), createMotorcycle);
 // PUT /api/motorcycles/:id
 // =====================================
 router.put("/:id", protect, authorize("admin", "provider"), updateMotorcycle);
+router.put("/:id/colors", protect, authorize("admin", "provider"), updateMotorcycleColors);
 
 
 // =====================================

@@ -488,7 +488,8 @@ function Homepage() {
                             ["Motorcycles", "/motorcycles"],
                             ["AI Advisor", "/ai-advisor"],
                             ["AI Plan", "/ai-plan"],
-                            ["Compare", "/compare"]
+                            ["Compare", "/compare"],
+                            ["Contact", "/contact"]
                         ].map(([label, path], index) => (
                             <button
                                 key={label}
@@ -507,7 +508,8 @@ function Homepage() {
                     {/* DESKTOP BUTTONS */}
                     <div className="hidden md:flex gap-3 items-center">
                         <ThemeToggle />
-                        {currentUser &&
+                        {(currentUser?.role === "user" ||
+                            currentUser?.role === "customer") &&
                             (planBadge?.plan === "premium" ? (
                                 <button
                                     onClick={() => go("/ai-plan")}
@@ -529,6 +531,15 @@ function Homepage() {
                                     Free Plan
                                 </button>
                             ))}
+                        {currentUser?.role === "admin" && (
+                            <button
+                                onClick={() => go("/admin")}
+                                title="Open admin panel"
+                                className="flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-400 transition hover:bg-orange-500/20"
+                            >
+                                Admin Panel
+                            </button>
+                        )}
                         {currentUser ? (
                             <div className="relative">
                                 <button
@@ -639,6 +650,7 @@ function Homepage() {
                             ["AI Advisor", "/ai-advisor"],
                             ["AI Plan", "/ai-plan"],
                             ["Compare", "/compare"],
+                            ["Contact", "/contact"],
                             ...(currentUser
                                 ? [["My Dashboard", dashboardPath]]
                                 : [["Login", "/login"], ["Get Started", "/register"]]),

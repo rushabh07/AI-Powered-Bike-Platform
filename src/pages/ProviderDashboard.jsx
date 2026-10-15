@@ -23,6 +23,16 @@ import {
     TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import DealershipOverview from "../components/dealership/DealershipOverview";
+import DealershipInventory from "../components/dealership/DealershipInventory";
+import DealershipBookings from "../components/dealership/DealershipBookings";
+import DealershipLeads from "../components/dealership/DealershipLeads";
+import DealershipSales from "../components/dealership/DealershipSales";
+import DealershipReviews from "../components/dealership/DealershipReviews";
+import DealershipProfile from "../components/dealership/DealershipProfile";
+import DealershipNotifications from "../components/dealership/DealershipNotifications";
+import DealershipReports from "../components/dealership/DealershipReports";
+import { Store, Users, Star, Bell, FileText, Package } from "lucide-react";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -257,15 +267,19 @@ const ProviderDashboard = () => {
         setActiveSection(section);
         setMobileMenu(false);
 
-        const element =
-            document.getElementById(section);
+        requestAnimationFrame(() => {
+            const element =
+                document.getElementById(section);
 
-        if (element) {
-            element.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
-        }
+            if (element) {
+                element.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+            } else {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        });
     };
 
     // =========================
@@ -603,6 +617,26 @@ const ProviderDashboard = () => {
                                 Profile
                             </button>
 
+                            {[
+                                ["showrooms", "Showrooms", Store],
+                                ["inventory", "Inventory", Package],
+                                ["leads", "Leads", Users],
+                                ["sales", "Sales", Briefcase],
+                                ["reviews", "Reviews", Star],
+                                ["notifications", "Notifications", Bell],
+                                ["reports", "Reports", FileText],
+                            ].map(([id, label, Icon]) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => scrollToSection(id)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-zinc-800 text-left"
+                                >
+                                    <Icon size={18} />
+                                    {label}
+                                </button>
+                            ))}
+
                             <button
                                 type="button"
                                 onClick={
@@ -737,6 +771,29 @@ const ProviderDashboard = () => {
                         <User size={18} />
                         My Profile
                     </button>
+
+                    {[
+                        ["showrooms", "Showrooms", Store],
+                        ["inventory", "Inventory", Package],
+                        ["leads", "Leads", Users],
+                        ["sales", "Sales", Briefcase],
+                        ["reviews", "Reviews", Star],
+                        ["notifications", "Notifications", Bell],
+                        ["reports", "Reports", FileText],
+                    ].map(([id, label, Icon]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            onClick={() => scrollToSection(id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition ${activeSection === id
+                                ? "bg-orange-500 text-black font-semibold"
+                                : "text-zinc-400 hover:text-white hover:bg-zinc-900"
+                                }`}
+                        >
+                            <Icon size={18} />
+                            {label}
+                        </button>
+                    ))}
                 </nav>
 
                 {/* Logout */}
@@ -832,7 +889,11 @@ const ProviderDashboard = () => {
                         DASHBOARD
                     ======================= */}
 
+                    {activeSection === "dashboard" && (
                     <section id="dashboard">
+                        <div className="mb-6">
+                            <DealershipOverview />
+                        </div>
                         <div className="mb-6">
                             <p className="text-sm text-orange-400 font-medium">
                                 Provider Dashboard
@@ -986,11 +1047,13 @@ const ProviderDashboard = () => {
                             </div>
                         </div>
                     </section>
+                    )}
 
                     {/* =======================
                         BOOKINGS
                     ======================= */}
 
+                    {activeSection === "bookings" && (
                     <section
                         id="bookings"
                         className="scroll-mt-24"
@@ -1321,11 +1384,118 @@ const ProviderDashboard = () => {
                             </div>
                         )}
                     </section>
+                    )}
+
+                    {/* =======================
+                        SHOWROOMS
+                    ======================= */}
+
+                    {activeSection === "showrooms" && (
+                    <section id="showrooms" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Dealerships</p>
+                            <h2 className="text-2xl font-bold mt-1">My Showrooms</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Manage showroom profiles, staff and images.</p>
+                        </div>
+                        <DealershipProfile />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        INVENTORY
+                    ======================= */}
+
+                    {activeSection === "inventory" && (
+                    <section id="inventory" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Stock</p>
+                            <h2 className="text-2xl font-bold mt-1">Inventory</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Motorcycle stock levels per showroom.</p>
+                        </div>
+                        <DealershipInventory />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        LEADS
+                    ======================= */}
+
+                    {activeSection === "leads" && (
+                    <section id="leads" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Pipeline</p>
+                            <h2 className="text-2xl font-bold mt-1">Leads</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Follow up and convert open enquiries.</p>
+                        </div>
+                        <DealershipLeads />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        SALES
+                    ======================= */}
+
+                    {activeSection === "sales" && (
+                    <section id="sales" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Offline Payments</p>
+                            <h2 className="text-2xl font-bold mt-1">Sales</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Cash, UPI, card and bank-transfer records.</p>
+                        </div>
+                        <DealershipSales />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        REVIEWS
+                    ======================= */}
+
+                    {activeSection === "reviews" && (
+                    <section id="reviews" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Reputation</p>
+                            <h2 className="text-2xl font-bold mt-1">Reviews</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Respond to reviews on your stocked models.</p>
+                        </div>
+                        <DealershipReviews />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        NOTIFICATIONS
+                    ======================= */}
+
+                    {activeSection === "notifications" && (
+                    <section id="notifications" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Inbox</p>
+                            <h2 className="text-2xl font-bold mt-1">Notifications</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Bookings, enquiries and order updates.</p>
+                        </div>
+                        <DealershipNotifications />
+                    </section>
+                    )}
+
+                    {/* =======================
+                        REPORTS
+                    ======================= */}
+
+                    {activeSection === "reports" && (
+                    <section id="reports" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Analytics</p>
+                            <h2 className="text-2xl font-bold mt-1">Reports & Activity</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Download CSV reports and view audit trail.</p>
+                        </div>
+                        <DealershipReports />
+                    </section>
+                    )}
 
                     {/* =======================
                         PROFILE
                     ======================= */}
 
+                    {activeSection === "profile" && (
                     <section
                         id="profile"
                         className="scroll-mt-24"
@@ -1492,6 +1662,7 @@ const ProviderDashboard = () => {
                             </div>
                         </div>
                     </section>
+                    )}
 
                     {/* Footer */}
 

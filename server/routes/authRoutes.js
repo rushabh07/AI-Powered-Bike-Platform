@@ -55,6 +55,14 @@ router.post("/register", async (req, res) => {
             aiPlan: "free",
         });
 
+        // Welcome email AFTER the account exists; failures never undo registration
+        try {
+            const { sendWelcomeEmail } = require("../services/emailService");
+            await sendWelcomeEmail(user);
+        } catch (e) {
+            console.error("Welcome email error:", e.message);
+        }
+
         res.status(201).json({
             message: "Registration successful.",
             user: {

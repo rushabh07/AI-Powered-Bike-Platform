@@ -184,3 +184,25 @@ img {
 #root {
   min-height: 100vh;
 }
+
+/* =====================================================
+   COLOR SELECTOR — light mode tweaks
+   Ensure the subtle card panel and tooltips remain
+   readable when html.light is active.
+   ===================================================== */
+
+/* The selector panel uses border-white/[0.07] & bg-white/[0.02].
+   Remap to soft grey so it's visible on light backgrounds. */
+html.light .border-white\/\[0\.07\] {
+  border-color: #d4d4d8 !important;
+}
+
+/* Tooltip backgrounds stay dark for contrast on any theme */
+html.light .bg-zinc-900 {
+  background-color: #18181b !important;
+}
+
+/* Unavailable swatch diagonal line stays readable */
+html.light .bg-white\/60 {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}

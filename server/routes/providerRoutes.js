@@ -10,6 +10,22 @@ const authorize = require("../middleware/roleMiddleware");
 // Allow both providers and admins (frontend ProtectedRoute uses ["provider", "admin"])
 const providerOnly = authorize("provider", "admin");
 
+// Panel access: providers, admins, or dealership staff (any role with staff membership)
+const Dealership = require("../models/Dealership");
+const panelOnly = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return res.status(403).json({ message: "Unauthorized. Insufficient permissions for this resource." });
+        }
+        if (["provider", "admin"].includes(req.user.role)) return next();
+        const count = await Dealership.countDocuments({ "staff.user": req.user._id });
+        if (count > 0) return next();
+        return res.status(403).json({ message: "Unauthorized. Insufficient permissions for this resource." });
+    } catch (error) {
+        return res.status(500).json({ message: "Authorization check failed." });
+    }
+};
+
 // =====================================================
 // TEST ROUTE
 // GET /api/provider/test
@@ -659,5 +675,37 @@ router.get(
         }
     }
 );
+
+const panel = require("../controllers/dealershipPanelController");
+
+// =====================================================
+// DEALERSHIP PANEL (scoped to own dealerships)
+// =====================================================
+
+router.get("/panel/overview", protect, panelOnly, panel.getOverview);
+
+router.get("/panel/dealerships", protect, panelOnly, panel.listMyDealerships);
+router.post("/panel/dealerships", protect, panelOnly, panel.createMyDealership);
+router.put("/panel/dealerships/:dealershipId", protect, panelOnly, panel.updateMyDealership);
+router.post("/panel/dealerships/:dealershipId/staff", protect, panelOnly, panel.addStaff);
+router.delete("/panel/dealerships/:dealershipId/staff/:userId", protect, panelOnly, panel.removeStaff);
+router.get("/panel/dealerships/:dealershipId/stock", protect, panelOnly, panel.getStock);
+router.put("/panel/dealerships/:dealershipId/stock", protect, panelOnly, panel.updateStock);
+
+router.get("/panel/bookings", protect, panelOnly, panel.listBookings);
+router.put("/panel/bookings/:bookingId", protect, panelOnly, panel.updateBooking);
+
+router.get("/panel/sales", protect, panelOnly, panel.listSales);
+router.post("/panel/sales", protect, panelOnly, panel.createSale);
+router.post("/panel/sales/:saleId/verify", protect, panelOnly, panel.verifySale);
+
+router.get("/panel/reviews", protect, panelOnly, panel.listReviews);
+router.post("/panel/reviews/:reviewId/respond", protect, panelOnly, panel.respondReview);
+
+router.get("/panel/notifications", protect, panelOnly, panel.listNotifications);
+router.put("/panel/notifications/:id/read", protect, panelOnly, panel.markNotificationRead);
+
+router.get("/panel/reports", protect, panelOnly, panel.downloadReport);
+router.get("/panel/audit", protect, panelOnly, panel.listAudit);
 
 module.exports = router;

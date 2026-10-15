@@ -16,6 +16,7 @@ const AIAdvisor = lazy(() => import("./pages/AIAdvisor"));
 const AIPlan = lazy(() => import("./pages/AIPlan"));
 const Compare = lazy(() => import("./pages/Compare"));
 const UserDashboard = lazy(() => import("./pages/UserDashboard"));
+const ContactUs = lazy(() => import("./pages/ContactUs"));
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-[#070707] text-white flex items-center justify-center">
@@ -43,6 +44,7 @@ function App() {
           <Route path="/ai-advisor" element={<AIAdvisor />} />
           <Route path="/ai-plan" element={<AIPlan />} />
           <Route path="/compare" element={<Compare />} />
+          <Route path="/contact" element={<ContactUs />} />
 
           {/* Customer / User Panel — authenticated customers only */}
           {[
@@ -53,6 +55,8 @@ function App() {
             ["favorites", "favorites"],
             ["comparisons", "comparisons"],
             ["subscriptions", "subscriptions"],
+            ["enquiries", "enquiries"],
+            ["test-rides", "test-rides"],
             ["notifications", "notifications"],
             ["settings", "settings"],
           ].map(([path, section]) => (

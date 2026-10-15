@@ -11,9 +11,11 @@ import {
     GitCompare,
     X,
     ChevronDown,
+    ChevronRight,
     ArrowLeft,
     Sparkles,
     Bike,
+    ShoppingCart,
 } from "lucide-react";
 
 const API = "http://localhost:5000/api/motorcycles";
@@ -982,16 +984,24 @@ function BikeCard({
 }) {
     const isEV =
         String(bike.category || "").toLowerCase() === "electric";
+    const navigate = useNavigate();
+    const availableColors = (bike.colors || []).filter((c) => c.available !== false);
+    const [cardColorIdx, setCardColorIdx] = useState(0);
+    const activeCardColor = availableColors[cardColorIdx] || null;
+    const cardImage = activeCardColor?.image || bike.image;
 
     return (
-        <article className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]">
+        <article
+            onClick={() => navigate(`/motorcycles/${bike._id}`)}
+            className="group cursor-pointer overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]"
+        >
 
             {/* IMAGE */}
             <div className="relative h-56 overflow-hidden bg-zinc-900">
 
                 <img
-                    src={bike.image}
-                    alt={bike.name}
+                    src={cardImage}
+                    alt={activeCardColor ? `${bike.name} - ${activeCardColor.name}` : bike.name}
                     loading="lazy"
                     decoding="async"
                     className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
@@ -1006,7 +1016,7 @@ function BikeCard({
 
                 {/* WISHLIST */}
                 <button
-                    onClick={onWishlist}
+                    onClick={(e) => { e.stopPropagation(); onWishlist(); }}
                     aria-label={liked ? `Remove ${bike.name} from wishlist` : `Save ${bike.name} to wishlist`}
                     aria-pressed={liked}
                     className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition ${liked
@@ -1046,6 +1056,54 @@ function BikeCard({
                         </h3>
                     </div>
                 </div>
+
+                {/* COLOR SWATCHES */}
+                {bike.colors && bike.colors.length > 0 && (() => {
+                    const availableColors = bike.colors.filter(c => c.available !== false);
+                    const maxVisible = 6;
+                    const visible = availableColors.slice(0, maxVisible);
+                    const overflow = availableColors.length - maxVisible;
+                    return (
+                        <div className="mt-3" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                                    Colors
+                                </span>
+                                {overflow > 0 && (
+                                    <span className="text-[10px] text-zinc-500 font-medium">
+                                        +{overflow} more
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {visible.map((color) => {
+                                    const idx = availableColors.indexOf(color);
+                                    const isActive = idx === cardColorIdx;
+                                    return (
+                                    <div key={color._id || color.name} className="relative group/cswatch">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setCardColorIdx(idx); }}
+                                            aria-label={`Show ${bike.name} in ${color.name}`}
+                                            aria-pressed={isActive}
+                                            className={`block w-5 h-5 rounded-full border-2 shadow-sm transition-all duration-150 hover:scale-125 ${isActive ? "border-orange-500 ring-2 ring-orange-500/30" : "border-white/20 hover:border-white/50"}`}
+                                            style={{ backgroundColor: color.hexCode }}
+                                            title={color.name}
+                                        />
+                                        {/* Mini tooltip */}
+                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-zinc-900 border border-white/10 px-2 py-0.5 text-[9px] font-medium text-white shadow-lg pointer-events-none z-20 opacity-0 scale-90 group-hover/cswatch:opacity-100 group-hover/cswatch:scale-100 transition-all duration-100">
+                                            {color.name}
+                                        </span>
+                                    </div>
+                                    );
+                                })}
+                            </div>
+                            {activeCardColor && (
+                                <p className="mt-1.5 text-[11px] font-semibold text-orange-400">{activeCardColor.name}</p>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 <div className="mt-3 flex items-center gap-2">
 
@@ -1127,17 +1185,17 @@ function BikeCard({
 
                     <Link
                         to={`/motorcycles/${bike._id}`}
-                        className="rounded-xl bg-orange-500 py-3 text-center text-sm font-bold text-black transition hover:bg-orange-400"
+                        className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-sm font-bold text-black transition hover:bg-orange-400"
                     >
+                        <ChevronRight size={15} />
                         View Details
                     </Link>
 
                     <button
-                        onClick={onCompare}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400"
+                        onClick={(e) => { e.stopPropagation(); onCompare(); }}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400"
                     >
-                        <GitCompare size={16} />
-                        Compare
+                        <GitCompare size={15} />
                     </button>
 
                 </div>

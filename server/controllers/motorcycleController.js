@@ -244,7 +244,9 @@ const createMotorcycle = async (req, res) => {
             topSpeed,
             image,
             images,
-            description
+            description,
+            model3DUrl,
+            colors
         } = req.body;
 
         // =====================================================
@@ -313,7 +315,11 @@ const createMotorcycle = async (req, res) => {
             // New labeled images
             images: formattedImages,
 
-            description: description || ""
+            description: description || "",
+
+            model3DUrl: model3DUrl ? String(model3DUrl).trim() : "",
+
+            ...(Array.isArray(colors) ? { colors } : {}),
         });
 
         res.status(201).json({
@@ -445,10 +451,54 @@ const deleteMotorcycle = async (req, res) => {
 // =====================================================
 // EXPORT
 // =====================================================
+const updateMotorcycleColors = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { colors } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid motorcycle ID." });
+        }
+
+        if (!Array.isArray(colors)) {
+            return res.status(400).json({ success: false, message: "Colors must be an array." });
+        }
+
+        for (const c of colors) {
+            if (!c.name || !String(c.name).trim()) {
+                return res.status(400).json({ success: false, message: "Each color must have a name." });
+            }
+            if (!c.hexCode || !String(c.hexCode).trim()) {
+                return res.status(400).json({ success: false, message: "Each color must have a hex code." });
+            }
+        }
+
+        const updated = await Motorcycle.findByIdAndUpdate(
+            id,
+            { $set: { colors } },
+            { new: true, runValidators: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Motorcycle not found." });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Colors updated successfully.",
+            colors: updated.colors,
+        });
+    } catch (error) {
+        console.error("Update colors error:", error.message);
+        res.status(500).json({ success: false, message: "Could not update colors." });
+    }
+};
+
 module.exports = {
     getMotorcycles,
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,
-    deleteMotorcycle
+    deleteMotorcycle,
+    updateMotorcycleColors,
 };

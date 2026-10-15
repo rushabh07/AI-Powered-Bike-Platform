@@ -65,6 +65,11 @@ export default function Navbar({ activeTab, showTokens = true }) {
     }, []);
 
     useEffect(() => {
+        try {
+            setCurrentUser(JSON.parse(localStorage.getItem("user") || "null"));
+        } catch {
+            setCurrentUser(null);
+        }
         fetchStatus();
 
         const handleStorageOrSubUpdate = () => {
@@ -85,7 +90,7 @@ export default function Navbar({ activeTab, showTokens = true }) {
             window.removeEventListener("storage", handleStorageOrSubUpdate);
             window.removeEventListener("focus", fetchStatus);
         };
-    }, [fetchStatus]);
+    }, [fetchStatus, location.pathname]);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -113,6 +118,7 @@ export default function Navbar({ activeTab, showTokens = true }) {
         { label: "AI Advisor", path: "/ai-advisor", icon: Sparkles },
         { label: "AI Plan", path: "/ai-plan" },
         { label: "Compare", path: "/compare" },
+        { label: "Contact", path: "/contact" },
     ];
 
     const isLinkActive = (path) => {
@@ -158,8 +164,9 @@ export default function Navbar({ activeTab, showTokens = true }) {
                 <div className="flex items-center gap-3">
                     <ThemeToggle />
 
-                    {/* Subscription & Token Badge */}
-                    {currentUser && (
+                    {/* Subscription & Token Badge (customers only) */}
+                    {(currentUser?.role === "user" ||
+                        currentUser?.role === "customer") && (
                         <Link
                             to="/ai-plan"
                             title="Manage your MOTOAI plan"

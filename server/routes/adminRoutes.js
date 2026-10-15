@@ -184,4 +184,55 @@ router.get("/test", (req, res) => {
     });
 });
 
+// =====================================================
+// EMAIL LOG + RETRY (persistent queue inspection)
+// GET /api/admin/email-log
+// POST /api/admin/email-log/:id/retry
+// =====================================================
+router.get("/email-log", protect, adminOnly, async (req, res) => {
+    try {
+        const EmailLog = require("../models/EmailLog");
+        const { page = 1, limit = 20, status } = req.query;
+        const filter = {};
+        if (status) filter.status = status;
+        const skip = (Number(page) - 1) * Number(limit);
+        const [items, total] = await Promise.all([
+            EmailLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
+            EmailLog.countDocuments(filter),
+        ]);
+        res.status(200).json({
+            success: true,
+            count: items.length,
+            total,
+            page: Number(page),
+            logs: items.map((l) => ({
+                _id: l._id,
+                to: l.to,
+                subject: l.subject,
+                entity: l.entity,
+                event: l.event,
+                status: l.status,
+                providerId: l.providerId,
+                reason: l.reason,
+                attempts: l.attempts,
+                createdAt: l.createdAt,
+            })),
+        });
+    } catch (error) {
+        console.error("Email log error:", error.message);
+        res.status(500).json({ success: false, message: "Could not load email log." });
+    }
+});
+
+router.post("/email-log/:id/retry", protect, adminOnly, async (req, res) => {
+    try {
+        const { retryEmailLog } = require("../services/emailService");
+        const result = await retryEmailLog(req.params.id);
+        res.status(result.sent ? 200 : 502).json({ success: result.sent, ...result });
+    } catch (error) {
+        console.error("Email retry error:", error.message);
+        res.status(500).json({ success: false, message: "Retry failed." });
+    }
+});
+
 module.exports = router;

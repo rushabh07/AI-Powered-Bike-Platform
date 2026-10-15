@@ -15,6 +15,9 @@ const subscriptionRoutes = require("./routes/subscriptionRoutes");
 const userRoutes = require("./routes/userRoutes");
 const comparisonRoutes = require("./routes/comparisonRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const bikeEnquiryRoutes = require("./routes/bikeEnquiryRoutes");
+const dealershipRoutes = require("./routes/dealershipRoutes");
 
 dotenv.config();
 
@@ -79,9 +82,21 @@ app.use("/api/comparisons", comparisonRoutes);
 
 // In-app notifications routes
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/bike-enquiries", bikeEnquiryRoutes);
+app.use("/api/dealerships", dealershipRoutes);
+app.use("/api/contact", require("./routes/contactRoutes"));
 
 // Subscription / Premium routes
 app.use("/api/subscription", subscriptionRoutes);
+
+// Self-hosted 3D assets (same-origin: no CORS issues for model-viewer)
+app.use("/models", express.static(require("path").join(__dirname, "public", "models"), {
+    maxAge: "7d",
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".glb")) res.setHeader("Content-Type", "model/gltf-binary");
+    },
+}));
 
 
 // ========================================

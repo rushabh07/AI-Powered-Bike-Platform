@@ -6,6 +6,7 @@ import {
     MessageSquare,
     Crown,
     Heart,
+    Bike,
     GitCompare,
     IndianRupee,
     Calendar,
@@ -24,6 +25,9 @@ import {
     Lock,
     AlertTriangle,
     ChevronRight,
+    ShoppingCart,
+    MapPin,
+    ExternalLink,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
@@ -49,6 +53,8 @@ import {
     getChats,
     renameChat,
     deleteChat,
+    getMyBikeEnquiries,
+    cancelBikeEnquiry,
 } from "../services/api";
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -70,6 +76,8 @@ const NAV = [
     { id: "favorites", label: "My Favorites", icon: Heart },
     { id: "comparisons", label: "Comparisons", icon: GitCompare },
     { id: "subscriptions", label: "My Subscriptions", icon: IndianRupee },
+    { id: "enquiries", label: "My Bike Enquiries", icon: ShoppingCart },
+    { id: "test-rides", label: "My Test Rides", icon: Bike },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -1831,6 +1839,163 @@ const PlanSection = ({ navigate }) => {
 };
 
 // ==============================
+// MY BIKE ENQUIRIES
+// ==============================
+const EnquiriesSection = ({ navigate, typeFilter = "" }) => {
+    const [enquiries, setEnquiries] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const displayed = typeFilter
+        ? enquiries.filter((e) => e.enquiryType === typeFilter)
+        : enquiries;
+
+    const load = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await getMyBikeEnquiries();
+            setEnquiries(data.enquiries || []);
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 401)) {
+                setError(err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const handleCancel = async (enquiryId) => {
+        if (!window.confirm("Cancel this enquiry?")) return;
+        try {
+            await cancelBikeEnquiry(enquiryId);
+            await load();
+        } catch (err) {
+            alert(err.message || "Failed to cancel enquiry.");
+        }
+    };
+
+    const statusBadge = (s) => {
+        const base = "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider";
+        switch (s) {
+            case "confirmed": return `${base} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20`;
+            case "completed": return `${base} bg-emerald-500/10 text-emerald-400 border border-emerald-500/20`;
+            case "contacted":
+            case "scheduled": return `${base} bg-blue-500/10 text-blue-400 border border-blue-500/20`;
+            case "cancelled":
+            case "rejected": return `${base} bg-zinc-500/10 text-zinc-500 border border-zinc-500/20`;
+            default: return `${base} bg-yellow-500/10 text-yellow-400 border border-yellow-500/20`;
+        }
+    };
+
+    const isTestRides = typeFilter === "test_ride";
+
+    return (
+        <div>
+            <SectionTitle
+                title={isTestRides ? "My Test Rides" : "My Bike Enquiries"}
+                subtitle={isTestRides ? "Your test ride bookings and their approval status." : "Track your test rides and dealership purchase enquiries."}
+            />
+            {error && (
+                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                </div>
+            )}
+            {loading ? (
+                <Loading text="Loading enquiries..." />
+            ) : displayed.length === 0 ? (
+                <EmptyBox
+                    icon={isTestRides ? <Bike size={26} /> : <ShoppingCart size={26} />}
+                    title={isTestRides ? "No test rides yet" : "No enquiries yet"}
+                    subtitle="Visit a motorcycle page and click Buy This Bike to book a test ride or purchase."
+                    action={
+                        <Link
+                            to="/motorcycles"
+                            className="mt-5 inline-block rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:bg-orange-400"
+                        >
+                            Explore Motorcycles
+                        </Link>
+                    }
+                />
+            ) : (
+                <div className="space-y-4">
+                    {displayed.map((enq) => {
+                        const bike = enq.motorcycle;
+                        const bikeImage = bike?.images?.[0]?.url || bike?.image || "";
+                        return (
+                            <div
+                                key={enq._id}
+                                className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 transition hover:border-orange-500/20"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <button
+                                        onClick={() => bike?._id && navigate(`/motorcycles/${bike._id}`)}
+                                        className="shrink-0"
+                                    >
+                                        {bikeImage ? (
+                                            <img src={bikeImage} alt={bike?.name || "Motorcycle"} className="h-20 w-20 rounded-xl object-cover" />
+                                        ) : (
+                                            <div className="h-20 w-20 rounded-xl bg-zinc-800 flex items-center justify-center">
+                                                <BrandLogo brand={bike?.brand || ""} brandLogo={bike?.brandLogo || ""} size={32} />
+                                            </div>
+                                        )}
+                                    </button>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-orange-500">
+                                                    {bike?.brand || "Unknown"}{enq.enquiryType === "test_ride" ? " • Test Ride" : " • Purchase"}
+                                                </p>
+                                                <p className="font-bold truncate">{bike?.name || "Unknown Motorcycle"}</p>
+                                                {enq.variantName && (
+                                                    <p className="text-xs font-semibold text-orange-400 mt-0.5">{enq.variantName} Variant</p>
+                                                )}
+                                            </div>
+                                            <span className={statusBadge(enq.status)}>{enq.status}</span>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                                            <span className="font-mono">ID: {enq.enquiryId}</span>
+                                            <span className="flex items-center gap-1"><MapPin size={11} />{enq.dealership?.name || "—"} • {enq.dealership?.city || ""}</span>
+                                            <span>Visit: {enq.visitDate ? new Date(enq.visitDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}{enq.timeSlot ? ` • ${enq.timeSlot}` : ""}</span>
+                                        </div>
+                                        {enq.color && (
+                                            <p className="mt-1 text-xs text-zinc-400">Color: {enq.color}</p>
+                                        )}
+                                        <p className="mt-1 text-xs text-zinc-500">Submitted: {new Date(enq.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                        <div className="mt-3 flex items-center gap-2">
+                                            {(enq.status === "submitted" || enq.status === "contacted" || enq.status === "scheduled") && (
+                                                <button
+                                                    onClick={() => handleCancel(enq._id)}
+                                                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-red-500/40 hover:text-red-400"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                            {bike?._id && (
+                                                <button
+                                                    onClick={() => navigate(`/motorcycles/${bike._id}`)}
+                                                    className="flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs font-semibold text-zinc-400 transition hover:border-orange-500/40 hover:text-orange-400"
+                                                >
+                                                    <ExternalLink size={11} /> View
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ==============================
 // SHELL
 // ==============================
 export default function UserDashboard({ section = "dashboard" }) {
@@ -2019,6 +2184,12 @@ export default function UserDashboard({ section = "dashboard" }) {
                     )}
                     {section === "plan" && (
                         <PlanSection navigate={navigate} />
+                    )}
+                    {section === "enquiries" && (
+                        <EnquiriesSection navigate={navigate} />
+                    )}
+                    {section === "test-rides" && (
+                        <EnquiriesSection navigate={navigate} typeFilter="test_ride" />
                     )}
                     {section === "notifications" && (
                         <NotificationsSection />
