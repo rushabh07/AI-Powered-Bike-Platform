@@ -16,7 +16,8 @@ const reviewSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
-            maxlength: 200,
+            minlength: 3,
+            maxlength: 120,
         },
         category: {
             type: String,
@@ -33,7 +34,32 @@ const reviewSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            minlength: 10,
             maxlength: 2000,
+        },
+        // Verified Order reference (preferred proof of purchase).
+        // Legacy completed purchase enquiries are also accepted.
+        order: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Order",
+            default: null,
+        },
+        // Moderation workflow: only "approved" reviews are public.
+        status: {
+            type: String,
+            enum: ["pending", "approved", "rejected"],
+            default: "approved",
+            index: true,
+        },
+        helpfulCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        helpfulBy: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+            default: [],
+            select: false,
         },
         isExpert: {
             type: Boolean,
@@ -61,5 +87,8 @@ const reviewSchema = new mongoose.Schema(
 
 reviewSchema.index({ user: 1, motorcycle: 1 }, { unique: true });
 reviewSchema.index({ motorcycle: 1, category: 1 });
+reviewSchema.index({ motorcycle: 1, status: 1, createdAt: -1 });
+reviewSchema.index({ motorcycle: 1, status: 1, rating: 1 });
+reviewSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.models.Review || mongoose.model("Review", reviewSchema);

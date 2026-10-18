@@ -24,15 +24,14 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DealershipOverview from "../components/dealership/DealershipOverview";
+import BikeOrdersSection from "../components/admin/BikeOrdersSection";
 import DealershipInventory from "../components/dealership/DealershipInventory";
 import DealershipBookings from "../components/dealership/DealershipBookings";
-import DealershipLeads from "../components/dealership/DealershipLeads";
 import DealershipSales from "../components/dealership/DealershipSales";
 import DealershipReviews from "../components/dealership/DealershipReviews";
-import DealershipProfile from "../components/dealership/DealershipProfile";
 import DealershipNotifications from "../components/dealership/DealershipNotifications";
 import DealershipReports from "../components/dealership/DealershipReports";
-import { Store, Users, Star, Bell, FileText, Package } from "lucide-react";
+import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
 
 const API_URL = "http://localhost:5000/api";
 
@@ -618,9 +617,8 @@ const ProviderDashboard = () => {
                             </button>
 
                             {[
-                                ["showrooms", "Showrooms", Store],
                                 ["inventory", "Inventory", Package],
-                                ["leads", "Leads", Users],
+                                ["orders", "Orders", ShoppingCart],
                                 ["sales", "Sales", Briefcase],
                                 ["reviews", "Reviews", Star],
                                 ["notifications", "Notifications", Bell],
@@ -773,9 +771,8 @@ const ProviderDashboard = () => {
                     </button>
 
                     {[
-                        ["showrooms", "Showrooms", Store],
                         ["inventory", "Inventory", Package],
-                        ["leads", "Leads", Users],
+                        ["orders", "Orders", ShoppingCart],
                         ["sales", "Sales", Briefcase],
                         ["reviews", "Reviews", Star],
                         ["notifications", "Notifications", Bell],
@@ -1387,21 +1384,6 @@ const ProviderDashboard = () => {
                     )}
 
                     {/* =======================
-                        SHOWROOMS
-                    ======================= */}
-
-                    {activeSection === "showrooms" && (
-                    <section id="showrooms" className="scroll-mt-24">
-                        <div className="mb-5">
-                            <p className="text-sm text-orange-400 font-medium">Dealerships</p>
-                            <h2 className="text-2xl font-bold mt-1">My Showrooms</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Manage showroom profiles, staff and images.</p>
-                        </div>
-                        <DealershipProfile />
-                    </section>
-                    )}
-
-                    {/* =======================
                         INVENTORY
                     ======================= */}
 
@@ -1417,17 +1399,17 @@ const ProviderDashboard = () => {
                     )}
 
                     {/* =======================
-                        LEADS
+                        ORDERS
                     ======================= */}
 
-                    {activeSection === "leads" && (
-                    <section id="leads" className="scroll-mt-24">
+                    {activeSection === "orders" && (
+                    <section id="orders" className="scroll-mt-24">
                         <div className="mb-5">
-                            <p className="text-sm text-orange-400 font-medium">Pipeline</p>
-                            <h2 className="text-2xl font-bold mt-1">Leads</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Follow up and convert open enquiries.</p>
+                            <p className="text-sm text-orange-400 font-medium">Online + Offline</p>
+                            <h2 className="text-2xl font-bold mt-1">Motorcycle Orders</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Confirm requests, verify payments, manage fulfilment.</p>
                         </div>
-                        <DealershipLeads />
+                        <BikeOrdersSection />
                     </section>
                     )}
 

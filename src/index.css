@@ -172,6 +172,18 @@ textarea {
   font: inherit;
 }
 
+/* Native dropdown option lists ignore page classes —
+   force them to follow the active theme. */
+select option {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+html.light select option {
+  background-color: #ffffff;
+  color: #18181b;
+}
+
 button {
   cursor: pointer;
 }

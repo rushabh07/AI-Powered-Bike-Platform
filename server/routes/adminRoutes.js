@@ -235,4 +235,190 @@ router.post("/email-log/:id/retry", protect, adminOnly, async (req, res) => {
     }
 });
 
+// =====================================================
+// ADVERTISEMENTS (admin management)
+// =====================================================
+const Advertisement = require("../models/Advertisement");
+const {
+    validateAdInput,
+    buildAdDoc,
+    isSafeTarget,
+} = require("../controllers/advertisementController");
+
+const isValidAdId = (id) => require("mongoose").Types.ObjectId.isValid(id);
+
+// Dashboard counts + filtered list
+// GET /api/admin/advertisements?search=&status=&placement=&sort=&page=&limit=
+router.get("/advertisements", protect, adminOnly, async (req, res) => {
+    try {
+        const { search = "", status = "", placement = "", sort = "order", page = 1, limit = 20 } = req.query;
+        const filter = { isDeleted: false };
+        if (status) filter.status = status;
+        if (placement) filter.placement = placement;
+        if (search.trim()) {
+            filter.$or = [
+                { title: new RegExp(search.trim(), "i") },
+                { description: new RegExp(search.trim(), "i") },
+            ];
+        }
+        const sortMap = {
+            order: { priority: -1, displayOrder: 1, createdAt: -1 },
+            newest: { createdAt: -1 },
+            oldest: { createdAt: 1 },
+            clicks: { clicks: -1 },
+            impressions: { impressions: -1 },
+        };
+        const skip = (Number(page) - 1) * Number(limit);
+        const now = new Date();
+        const [items, total, counts] = await Promise.all([
+            Advertisement.find(filter).sort(sortMap[sort] || sortMap.order).skip(skip).limit(Number(limit)).lean(),
+            Advertisement.countDocuments(filter),
+            (async () => {
+                const base = { isDeleted: false };
+                const [all, active, drafts, scheduled, expired] = await Promise.all([
+                    Advertisement.countDocuments(base),
+                    Advertisement.countDocuments({ ...base, status: "active" }),
+                    Advertisement.countDocuments({ ...base, status: "draft" }),
+                    Advertisement.countDocuments({ ...base, status: "active", startDate: { $gt: now } }),
+                    Advertisement.countDocuments({ ...base, endDate: { $lt: now } }),
+                ]);
+                return { all, active, drafts, scheduled, expired };
+            })(),
+        ]);
+        res.status(200).json({
+            success: true,
+            count: items.length,
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / Number(limit)) || 1,
+            counts,
+            advertisements: items,
+        });
+    } catch (error) {
+        console.error("Admin ads list error:", error.message);
+        res.status(500).json({ success: false, message: "Could not load advertisements." });
+    }
+});
+
+// GET /api/admin/advertisements/:id
+router.get("/advertisements/:id", protect, adminOnly, async (req, res) => {
+    try {
+        if (!isValidAdId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
+        }
+        const ad = await Advertisement.findOne({ _id: req.params.id, isDeleted: false }).lean();
+        if (!ad) return res.status(404).json({ success: false, message: "Advertisement not found." });
+        res.status(200).json({ success: true, advertisement: ad });
+    } catch (error) {
+        console.error("Admin ad get error:", error.message);
+        res.status(500).json({ success: false, message: "Could not load advertisement." });
+    }
+});
+
+// POST /api/admin/advertisements
+router.post("/advertisements", protect, adminOnly, async (req, res) => {
+    try {
+        const errors = validateAdInput(req.body);
+        if (errors.length > 0) {
+            return res.status(400).json({ success: false, message: errors[0], errors });
+        }
+        const ad = await Advertisement.create(buildAdDoc(req.body, req.user._id));
+        res.status(201).json({ success: true, message: "Advertisement created.", advertisement: ad });
+    } catch (error) {
+        console.error("Admin ad create error:", error.message);
+        res.status(500).json({ success: false, message: "Could not create advertisement." });
+    }
+});
+
+// PUT /api/admin/advertisements/:id
+router.put("/advertisements/:id", protect, adminOnly, async (req, res) => {
+    try {
+        if (!isValidAdId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
+        }
+        const errors = validateAdInput(req.body);
+        if (errors.length > 0) {
+            return res.status(400).json({ success: false, message: errors[0], errors });
+        }
+        const ad = await Advertisement.findOneAndUpdate(
+            { _id: req.params.id, isDeleted: false },
+            { $set: buildAdDoc(req.body) },
+            { new: true, runValidators: true }
+        );
+        if (!ad) return res.status(404).json({ success: false, message: "Advertisement not found." });
+        res.status(200).json({ success: true, message: "Advertisement updated.", advertisement: ad });
+    } catch (error) {
+        console.error("Admin ad update error:", error.message);
+        res.status(500).json({ success: false, message: "Could not update advertisement." });
+    }
+});
+
+// PATCH /api/admin/advertisements/:id/status
+router.patch("/advertisements/:id/status", protect, adminOnly, async (req, res) => {
+    try {
+        if (!isValidAdId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
+        }
+        const { status } = req.body;
+        if (!["draft", "active", "inactive"].includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status." });
+        }
+        const ad = await Advertisement.findOneAndUpdate(
+            { _id: req.params.id, isDeleted: false },
+            { $set: { status } },
+            { new: true }
+        );
+        if (!ad) return res.status(404).json({ success: false, message: "Advertisement not found." });
+        res.status(200).json({ success: true, message: `Advertisement ${status}.`, advertisement: ad });
+    } catch (error) {
+        console.error("Admin ad status error:", error.message);
+        res.status(500).json({ success: false, message: "Could not update status." });
+    }
+});
+
+// PATCH /api/admin/advertisements/reorder  { order: [{ id, displayOrder }] }
+router.patch("/advertisements/reorder", protect, adminOnly, async (req, res) => {
+    try {
+        const { order } = req.body;
+        if (!Array.isArray(order) || order.length === 0) {
+            return res.status(400).json({ success: false, message: "Order array is required." });
+        }
+        const ops = order
+            .filter((o) => o && isValidAdId(o.id) && Number.isFinite(Number(o.displayOrder)))
+            .map((o) => ({
+                updateOne: {
+                    filter: { _id: o.id, isDeleted: false },
+                    update: { $set: { displayOrder: Number(o.displayOrder) } },
+                },
+            }));
+        if (ops.length === 0) {
+            return res.status(400).json({ success: false, message: "No valid order entries." });
+        }
+        await Advertisement.bulkWrite(ops);
+        res.status(200).json({ success: true, message: "Display order saved.", updated: ops.length });
+    } catch (error) {
+        console.error("Admin ad reorder error:", error.message);
+        res.status(500).json({ success: false, message: "Could not save order." });
+    }
+});
+
+// DELETE /api/admin/advertisements/:id (soft delete)
+router.delete("/advertisements/:id", protect, adminOnly, async (req, res) => {
+    try {
+        if (!isValidAdId(req.params.id)) {
+            return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
+        }
+        const ad = await Advertisement.findOneAndUpdate(
+            { _id: req.params.id, isDeleted: false },
+            { $set: { isDeleted: true, deletedAt: new Date(), status: "inactive" } },
+            { new: true }
+        );
+        if (!ad) return res.status(404).json({ success: false, message: "Advertisement not found." });
+        res.status(200).json({ success: true, message: "Advertisement deleted." });
+    } catch (error) {
+        console.error("Admin ad delete error:", error.message);
+        res.status(500).json({ success: false, message: "Could not delete advertisement." });
+    }
+});
+
 module.exports = router;

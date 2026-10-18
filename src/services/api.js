@@ -263,6 +263,70 @@ export const getAdminExpiringSubscriptions = (days = 7) =>
 export const getAdminLowTokenUsers = (threshold = 5) =>
     apiFetch(`/admin/subscriptions/low-tokens?threshold=${threshold}`);
 
+// ==========================================
+// Admin Advertisements API
+// ==========================================
+
+const adQuery = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return query ? `?${query}` : "";
+};
+
+export const getAdminAdvertisements = (params = {}) =>
+    apiFetch(`/admin/advertisements${adQuery(params)}`);
+
+export const getAdminAdvertisement = (id) =>
+    apiFetch(`/admin/advertisements/${id}`);
+
+export const createAdminAdvertisement = (payload) =>
+    apiFetch("/admin/advertisements", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+
+export const updateAdminAdvertisement = (id, payload) =>
+    apiFetch(`/admin/advertisements/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
+
+export const setAdminAdvertisementStatus = (id, status) =>
+    apiFetch(`/admin/advertisements/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+    });
+
+export const reorderAdminAdvertisements = (order) =>
+    apiFetch("/admin/advertisements/reorder", {
+        method: "PATCH",
+        body: JSON.stringify({ order }),
+    });
+
+export const deleteAdminAdvertisement = (id) =>
+    apiFetch(`/admin/advertisements/${id}`, { method: "DELETE" });
+
+// ==========================================
+// Public Advertisements API
+// ==========================================
+
+export const getPublicAdvertisements = async (placement = "homepage") => {
+    const response = await fetch(
+        `${API_BASE}/advertisements?placement=${encodeURIComponent(placement)}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch advertisements");
+    return response.json();
+};
+
+export const trackAdImpression = (id) =>
+    fetch(`${API_BASE}/advertisements/${id}/impression`, { method: "POST" }).catch(() => {});
+
+export const trackAdClick = (id) =>
+    fetch(`${API_BASE}/advertisements/${id}/click`, { method: "POST" }).catch(() => {});
+
 export const exportAdminSubscriptionsCsv = async (params = {}) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
@@ -369,4 +433,114 @@ export const getMyReviews = () => apiFetch("/reviews/my");
 
 export const getReviewEligibility = (motorcycleId) =>
     apiFetch(`/reviews/motorcycle/${motorcycleId}/eligibility`);
+
+// Paginated public reviews for ONE motorcycle (spec-shaped endpoint)
+export const getMotorcycleReviewsPaged = async (motorcycleId, params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.page) qs.set("page", params.page);
+    if (params.limit) qs.set("limit", params.limit);
+    if (params.sort) qs.set("sort", params.sort);
+    if (params.rating) qs.set("rating", params.rating);
+    const query = qs.toString();
+    const response = await fetch(
+        `${API_BASE}/motorcycles/${motorcycleId}/reviews${query ? `?${query}` : ""}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch reviews");
+    return response.json();
+};
+
+export const getReviewSummary = async (motorcycleId) => {
+    const response = await fetch(`${API_BASE}/motorcycles/${motorcycleId}/reviews/summary`);
+    if (!response.ok) throw new Error("Failed to fetch rating summary");
+    return response.json();
+};
+
+// Bulk summaries for listing cards / search / related bikes (1 request)
+export const getBulkReviewSummaries = async (motorcycleIds) => {
+    if (!motorcycleIds || motorcycleIds.length === 0) return {};
+    const response = await fetch(
+        `${API_BASE}/reviews/summaries?ids=${encodeURIComponent(motorcycleIds.join(","))}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch rating summaries");
+    const data = await response.json();
+    return data.summaries || {};
+};
+
+export const submitMotorcycleReview = (motorcycleId, payload) =>
+    apiFetch(`/motorcycles/${motorcycleId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+
+export const toggleReviewHelpful = (reviewId) =>
+    apiFetch(`/reviews/${reviewId}/helpful`, { method: "POST" });
+
+// Admin moderation
+export const getAdminReviews = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/reviews/admin/all${query ? `?${query}` : ""}`);
+};
+
+export const moderateReview = (reviewId, status) =>
+    apiFetch(`/reviews/admin/${reviewId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+    });
+
+export const recalculateAllRatings = () =>
+    apiFetch("/reviews/admin/recalculate", { method: "POST" });
+
+// ==========================================
+// Motorcycle Orders (online + offline)
+// ==========================================
+
+// Offline dealership purchase requests only
+export const createOfflineOrder = (payload) =>
+    apiFetch("/orders/offline", { method: "POST", body: JSON.stringify(payload) });
+
+export const createOnlineOrder = (payload) => createOfflineOrder(payload);
+
+export const getMyOrders = () => apiFetch("/orders/my");
+
+export const getOrder = (orderId) => apiFetch(`/orders/${orderId}`);
+
+export const cancelOrder = (orderId, reason) =>
+    apiFetch(`/orders/${orderId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+    });
+
+export const getStaffOrders = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/orders${query ? `?${query}` : ""}`);
+};
+
+export const dealerConfirmOrder = (orderId) =>
+    apiFetch(`/orders/${orderId}/confirm`, { method: "POST" });
+
+export const dealerRejectOrder = (orderId, reason) =>
+    apiFetch(`/orders/${orderId}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+    });
+
+export const verifyOfflineOrderPayment = (orderId, payload) =>
+    apiFetch(`/orders/${orderId}/verify-offline-payment`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+
+export const updateOrderFulfilment = (orderId, payload) =>
+    apiFetch(`/orders/${orderId}/fulfilment`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+    });
 

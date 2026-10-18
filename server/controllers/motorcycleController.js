@@ -1,5 +1,39 @@
 const Motorcycle = require("../models/Motorcycle");
+const Review = require("../models/Review");
 const mongoose = require("mongoose");
+
+// Live approved-review aggregates keyed by motorcycle id string.
+// Single aggregation — used to enrich list/detail responses so
+// cards never show fabricated ratings.
+const fetchReviewSummaryMap = async (motorcycleIds) => {
+    const objectIds = motorcycleIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+    if (objectIds.length === 0) return {};
+    const rows = await Review.aggregate([
+        { $match: { motorcycle: { $in: objectIds }, status: "approved" } },
+        {
+            $group: {
+                _id: "$motorcycle",
+                average: { $avg: "$rating" },
+                count: { $sum: 1 },
+                d1: { $sum: { $cond: [{ $eq: ["$rating", 1] }, 1, 0] } },
+                d2: { $sum: { $cond: [{ $eq: ["$rating", 2] }, 1, 0] } },
+                d3: { $sum: { $cond: [{ $eq: ["$rating", 3] }, 1, 0] } },
+                d4: { $sum: { $cond: [{ $eq: ["$rating", 4] }, 1, 0] } },
+                d5: { $sum: { $cond: [{ $eq: ["$rating", 5] }, 1, 0] } },
+            },
+        },
+    ]);
+    const map = {};
+    for (const row of rows) {
+        map[String(row._id)] = {
+            averageRating: Math.round(row.average * 10) / 10,
+            totalReviews: row.count,
+            distribution: { 1: row.d1, 2: row.d2, 3: row.d3, 4: row.d4, 5: row.d5 },
+        };
+    }
+    return map;
+};
 
 // =====================================================
 // GET ALL MOTORCYCLES
@@ -159,12 +193,26 @@ const getMotorcycles = async (req, res) => {
 
         const motorcycles = await Motorcycle
             .find(filter)
-            .sort(sortOption);
+            .sort(sortOption)
+            .lean();
+
+        // Attach live rating summaries (approved reviews only) so
+        // listing cards / search results show real database ratings.
+        let summaryMap = {};
+        try {
+            summaryMap = await fetchReviewSummaryMap(motorcycles.map((m) => String(m._id)));
+        } catch (e) {
+            console.error("Review summary enrichment error:", e.message);
+        }
+        const enriched = motorcycles.map((m) => ({
+            ...m,
+            reviewSummary: summaryMap[String(m._id)] || { averageRating: 0, totalReviews: 0 },
+        }));
 
         res.status(200).json({
             success: true,
-            count: motorcycles.length,
-            motorcycles
+            count: enriched.length,
+            motorcycles: enriched
         });
 
     } catch (error) {
@@ -202,9 +250,18 @@ const getMotorcycleById = async (req, res) => {
             });
         }
 
+        let reviewSummary = { averageRating: 0, totalReviews: 0 };
+        try {
+            const map = await fetchReviewSummaryMap([String(motorcycle._id)]);
+            if (map[String(motorcycle._id)]) reviewSummary = map[String(motorcycle._id)];
+        } catch (e) {
+            console.error("Review summary enrichment error:", e.message);
+        }
+
         res.status(200).json({
             success: true,
-            motorcycle
+            motorcycle,
+            reviewSummary
         });
 
     } catch (error) {
@@ -290,6 +347,27 @@ const createMotorcycle = async (req, res) => {
         // =====================================================
         // CREATE MOTORCYCLE
         // =====================================================
+        // Auto-seed city road taxes so every new bike gets a city
+        // selector automatically, even if admin skips pricing.
+        const basePrice = Number(price) || 0;
+        const DEFAULT_CITY_TAXES = {
+            Mumbai: 0.12,
+            Pune: 0.09,
+            Delhi: 0.15,
+            Bangalore: 0.11,
+            Chennai: 0.10,
+            Hyderabad: 0.08,
+            Kolkata: 0.13,
+            Ahmedabad: 0.07,
+        };
+        const initialCityPrices = Array.isArray(req.body.cityPrices) && req.body.cityPrices.length > 0
+            ? req.body.cityPrices
+            : Object.entries(DEFAULT_CITY_TAXES).map(([city, mult]) => ({
+                city,
+                roadTax: Math.round(basePrice * mult),
+            }));
+
+
         const motorcycle = await Motorcycle.create({
             name: name.trim(),
             brand: brand.trim(),
@@ -320,6 +398,9 @@ const createMotorcycle = async (req, res) => {
             model3DUrl: model3DUrl ? String(model3DUrl).trim() : "",
 
             ...(Array.isArray(colors) ? { colors } : {}),
+
+            cityPrices: initialCityPrices,
+            exShowroomPrice: basePrice,
         });
 
         res.status(201).json({

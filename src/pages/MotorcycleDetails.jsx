@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
-import { getMotorcycleVariants, getMotorcycleReviews, createReview, updateReview, deleteReview, getReviewEligibility } from "../services/api";
+import { getMotorcycleVariants } from "../services/api";
+import ReviewsSection from "../components/reviews/ReviewsSection";
 import BuyPurchaseModal from "../components/BuyPurchaseModal";
 import Motorcycle3DViewer from "../components/Motorcycle3DViewer";
 import {
@@ -24,10 +25,9 @@ import {
     Search,
     ShoppingCart,
     Check,
-    Pencil,
-    Trash2,
     Box,
     Images,
+    Store,
 } from "lucide-react";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
@@ -51,10 +51,9 @@ const MotorcycleDetails = () => {
     const [citySearch, setCitySearch] = useState("");
     const cityDropdownRef = useRef(null);
 
-    const [reviews, setReviews] = useState([]);
-    const [reviewSummary, setReviewSummary] = useState(null);
-    const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [reviewError, setReviewError] = useState("");
+    // Live database-backed rating for the header (from /api/motorcycles/:id).
+    // The full section below is rendered by <ReviewsSection/>.
+    const [liveSummary, setLiveSummary] = useState(null);
 
     const [selectedColor, setSelectedColor] = useState(null);
     const [showBuyModal, setShowBuyModal] = useState(false);
@@ -66,12 +65,6 @@ const MotorcycleDetails = () => {
         "";
     const bikeColors = (bike?.colors || []).filter((c) => c.available !== false);
     const activeColorImage = selectedColor?.image || null;
-    const [showReviewForm, setShowReviewForm] = useState(false);
-    const [editingReview, setEditingReview] = useState(null);
-    const [reviewForm, setReviewForm] = useState({ title: "", category: "performance", rating: 0, comment: "" });
-    const [reviewSubmitting, setReviewSubmitting] = useState(false);
-    const [expandedCards, setExpandedCards] = useState({});
-
     const isLoggedIn = () => {
         try {
             return !!(localStorage.getItem("token") && localStorage.getItem("user"));
@@ -80,119 +73,14 @@ const MotorcycleDetails = () => {
         }
     };
 
-    const currentUser = (() => {
-        try {
-            return JSON.parse(localStorage.getItem("user") || "null");
-        } catch {
-            return null;
-        }
-    })();
-
-    const fetchReviews = async () => {
-        if (!bike?._id) return;
-        setReviewsLoading(true);
-        setReviewError("");
-        try {
-            const data = await getMotorcycleReviews(bike._id);
-            setReviews(data.reviews || []);
-            setReviewSummary(data.summary || null);
-        } catch (err) {
-            setReviewError(err.message || "Could not load reviews.");
-        } finally {
-            setReviewsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (bike) fetchReviews();
-    }, [bike?._id]);
-
-    const [reviewEligible, setReviewEligible] = useState(false);
-
-    useEffect(() => {
-        if (!bike?._id || !isLoggedIn()) {
-            setReviewEligible(false);
-            return;
-        }
-        getReviewEligibility(bike._id)
-            .then((data) => setReviewEligible(!!data.eligible))
-            .catch(() => setReviewEligible(false));
-    }, [bike?._id]);
-
-    const openReviewForm = (review = null) => {
-        if (!isLoggedIn()) {
-            navigate("/login");
-            return;
-        }
-        if (!review && !reviewEligible && currentUser?.role !== "admin") {
-            alert("Purchase this motorcycle to share your review.");
-            return;
-        }
-        if (review) {
-            setEditingReview(review);
-            setReviewForm({ title: review.title, category: review.category, rating: review.rating, comment: review.comment });
-        } else {
-            setEditingReview(null);
-            setReviewForm({ title: "", category: "performance", rating: 0, comment: "" });
-        }
-        setShowReviewForm(true);
-    };
-
-    const closeReviewForm = () => {
-        setShowReviewForm(false);
-        setEditingReview(null);
-        setReviewForm({ title: "", category: "performance", rating: 0, comment: "" });
-    };
-
-    const submitReview = async () => {
-        if (!reviewForm.title.trim()) { alert("Please enter a title."); return; }
-        if (!reviewForm.rating || reviewForm.rating < 1) { alert("Please select a rating."); return; }
-        if (!reviewForm.comment.trim()) { alert("Please write a comment."); return; }
-        setReviewSubmitting(true);
-        try {
-            if (editingReview) {
-                await updateReview(editingReview._id, reviewForm);
-            } else {
-                await createReview({ motorcycleId: bike._id, ...reviewForm });
-            }
-            closeReviewForm();
-            await fetchReviews();
-        } catch (err) {
-            alert(err.message || "Failed to submit review.");
-        } finally {
-            setReviewSubmitting(false);
-        }
-    };
-
-    const handleDeleteReview = async (reviewId) => {
-        if (!window.confirm("Delete this review?")) return;
-        try {
-            await deleteReview(reviewId);
-            await fetchReviews();
-        } catch (err) {
-            alert(err.message || "Failed to delete review.");
-        }
-    };
-
-    const toggleExpand = (cat) => {
-        setExpandedCards((prev) => ({ ...prev, [cat]: !prev[cat] }));
-    };
-
-    const CATEGORIES = [
-        { key: "performance", label: "Power & Performance" },
-        { key: "handling", label: "Ride Quality & Handling" },
-        { key: "design", label: "Design & Quality" },
-        { key: "mileage", label: "Mileage & Fuel Efficiency" },
-        { key: "comfort", label: "Comfort & Features" },
-    ];
-
     const baseExShowroom = bike?.exShowroomPrice || bike?.price || 0;
     const activeExShowroom = selectedVariant
         ? selectedVariant.exShowroomPrice
         : baseExShowroom;
-    const activeCityPrices = selectedVariant
-        ? selectedVariant.cityPrices
-        : bike?.cityPrices || [];
+    const activeCityPrices =
+        selectedVariant?.cityPrices?.length > 0
+            ? selectedVariant.cityPrices
+            : bike?.cityPrices || [];
     const availableCities = activeCityPrices.map((cp) => cp.city);
     const filteredCities = availableCities.filter((c) =>
         c.toLowerCase().includes(citySearch.toLowerCase())
@@ -225,6 +113,7 @@ const MotorcycleDetails = () => {
                 }
 
                 setBike(data.motorcycle);
+                setLiveSummary(data.reviewSummary || null);
                 setActiveImage(0);
                 setViewMode("photos");
             } catch (error) {
@@ -683,7 +572,7 @@ const MotorcycleDetails = () => {
                         <div className="flex items-start justify-between gap-5">
 
                             <div>
-                                <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
+                                <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white">
                                     {bike.name}
                                 </h1>
 
@@ -720,19 +609,25 @@ const MotorcycleDetails = () => {
 
                         </div>
 
-                        {/* RATING */}
-                        <div className="flex items-center gap-3 mt-6">
-
-                            <div className="flex items-center gap-1 text-orange-400">
-                                <Star
-                                    size={18}
-                                    fill="currentColor"
-                                />
-
-                                <span className="font-bold">
-                                    {bike.rating ?? "N/A"}
+                        {/* RATING (live, database-backed) */}
+                        <div className="flex flex-wrap items-center gap-3 mt-6">
+                            {liveSummary && liveSummary.totalReviews > 0 ? (
+                                <>
+                                    <div className="flex items-center gap-1 text-orange-400">
+                                        <Star size={18} fill="currentColor" />
+                                        <span className="font-bold">
+                                            {Number(liveSummary.averageRating).toFixed(1)}
+                                        </span>
+                                    </div>
+                                    <span className="text-sm text-gray-400">
+                                        ({liveSummary.totalReviews} review{liveSummary.totalReviews === 1 ? "" : "s"})
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-sm text-gray-400">
+                                    No reviews yet
                                 </span>
-                            </div>
+                            )}
 
                             <span className="text-gray-600">
                                 •
@@ -806,7 +701,34 @@ const MotorcycleDetails = () => {
                             )}
                         </div>
 
-                        {/* BUY THIS BIKE BUTTON */}
+                        {/* BUY AT DEALERSHIP (OFFLINE PURCHASE ONLY) */}
+                        <div className="mt-6">
+                            <button
+                                id="buy-at-dealership-btn"
+                                onClick={() => {
+                                    if (!isLoggedIn()) {
+                                        navigate("/login", { state: { from: `/motorcycles/${bike._id}` } });
+                                        return;
+                                    }
+                                    navigate(`/checkout/${bike._id}`, {
+                                        state: {
+                                            city: selectedCity || "",
+                                            color: selectedColor?.name || "",
+                                            variantId: selectedVariant?._id || "",
+                                        },
+                                    });
+                                }}
+                                className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-black font-extrabold text-lg transition shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2.5"
+                            >
+                                <Store size={22} className="text-black" />
+                                Buy at Dealership
+                            </button>
+                        </div>
+                        <p className="mt-2 text-center text-xs text-zinc-400">
+                            Offline purchase • Select an authorized showroom, schedule your visit & complete payment at the dealership
+                        </p>
+
+                        {/* ENQUIRY MODAL (test ride / general) */}
                         <button
                             onClick={() => {
                                 if (!isLoggedIn()) {
@@ -815,10 +737,10 @@ const MotorcycleDetails = () => {
                                 }
                                 setShowBuyModal(true);
                             }}
-                            className="mt-6 w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg transition shadow-lg shadow-orange-500/10 flex items-center justify-center gap-2"
+                            className="mt-3 w-full py-3 rounded-2xl border border-white/10 hover:border-orange-500/40 text-zinc-300 hover:text-orange-400 font-semibold transition flex items-center justify-center gap-2"
                         >
-                            <ShoppingCart size={20} />
-                            Buy This Bike
+                            <ShoppingCart size={18} />
+                            Enquire / Book Test Ride
                         </button>
 
                         {showBuyModal && (
@@ -1040,196 +962,17 @@ const MotorcycleDetails = () => {
             </main>
 
             {/* =====================================================
-                REVIEWS & RATINGS SECTION
+                RATINGS & REVIEWS (database-backed, per-motorcycle)
             ===================================================== */}
             <section className="max-w-7xl mx-auto px-5 sm:px-8 pb-16">
-                <div className="rounded-3xl border border-white/10 bg-[#0c0c0c] p-6 sm:p-8">
-                    {/* Header */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                        <h2 className="text-2xl font-black tracking-tight text-white">Reviews & Ratings</h2>
-                        {(reviewEligible || currentUser?.role === "admin") ? (
-                            <button
-                                onClick={() => openReviewForm()}
-                                className="flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400"
-                            >
-                                Write a Review
-                            </button>
-                        ) : (
-                            <p className="text-xs text-zinc-500 rounded-xl border border-white/10 px-4 py-2.5">
-                                Purchase this motorcycle to share your review.
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Expert & User Rating Badges */}
-                    {reviewSummary && (
-                        <div className="grid gap-4 sm:grid-cols-3 mb-8">
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
-                                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Expert Rating</p>
-                                <p className="text-3xl font-black text-orange-400">{reviewSummary.expertRating || "—"}</p>
-                                <p className="text-xs text-zinc-500 mt-1">{reviewSummary.expertCount} expert reviews</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
-                                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">User Rating</p>
-                                <p className="text-3xl font-black text-orange-400">{reviewSummary.userRating || "—"}</p>
-                                <p className="text-xs text-zinc-500 mt-1">{reviewSummary.userCount} user reviews</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-center">
-                                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Overall Rating</p>
-                                <p className="text-3xl font-black text-orange-400">{reviewSummary.overallRating || "—"}</p>
-                                <p className="text-xs text-zinc-500 mt-1">{reviewSummary.totalCount} total reviews</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {reviewError && (
-                        <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{reviewError}</div>
-                    )}
-
-                    {/* Category Review Cards */}
-                    {reviewsLoading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500/30 border-t-orange-500" />
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {CATEGORIES.map((cat) => {
-                                const catReviews = reviews.filter((r) => r.category === cat.key);
-                                const catSummary = reviewSummary?.categories?.[cat.key];
-                                const expanded = expandedCards[cat.key];
-                                return (
-                                    <div key={cat.key} className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                                        {/* Category Header */}
-                                        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-                                            <h3 className="font-bold text-white">{cat.label}</h3>
-                                            {catSummary && catSummary.count > 0 && (
-                                                <div className="flex items-center gap-2">
-                                                    <Star size={14} className="fill-orange-400 text-orange-400" />
-                                                    <span className="text-sm font-bold text-orange-400">{catSummary.average}</span>
-                                                    <span className="text-xs text-zinc-500">({catSummary.count})</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {/* Reviews */}
-                                        {catReviews.length === 0 ? (
-                                            <p className="px-5 py-6 text-sm text-zinc-500">No reviews yet for this category.</p>
-                                        ) : (
-                                            <div className="divide-y divide-white/5">
-                                                {catReviews.map((review) => (
-                                                    <div key={review._id} className="p-5">
-                                                        <div className="flex items-start justify-between gap-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 font-bold text-sm shrink-0">
-                                                                    {review.user?.name?.charAt(0)?.toUpperCase() || "?"}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-bold text-sm text-white">{review.user?.name || "Anonymous"}</p>
-                                                                    <div className="flex items-center gap-1 mt-0.5">
-                                                                        {[1,2,3,4,5].map((s) => (
-                                                                            <Star key={s} size={12} className={s <= review.rating ? "fill-orange-400 text-orange-400" : "text-zinc-600"} />
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                {review.isExpert && (
-                                                                    <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-orange-400">Expert</span>
-                                                                )}
-                                                                {review.verifiedPurchase && (
-                                                                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">Verified Purchase</span>
-                                                                )}
-                                                            </div>
-                                                            {currentUser && review.user?._id === currentUser._id && (
-                                                                <div className="flex items-center gap-1">
-                                                                    <button onClick={() => openReviewForm(review)} className="rounded-lg p-1.5 text-zinc-500 hover:text-white transition"><Pencil size={14} /></button>
-                                                                    <button onClick={() => handleDeleteReview(review._id)} className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400 transition"><Trash2 size={14} /></button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <p className="mt-3 font-semibold text-white">{review.title}</p>
-                                                        <p className={`mt-2 text-sm text-zinc-300 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
-                                                            {review.comment}
-                                                        </p>
-                                                        {review.comment.length > 150 && (
-                                                            <button onClick={() => toggleExpand(cat.key)} className="mt-2 text-xs font-bold text-orange-500 hover:text-orange-400 transition">
-                                                                {expanded ? "Read Less" : "Read More"}
-                                                            </button>
-                                                        )}
-                                                        {review.dealerResponse && (
-                                                            <div className="mt-3 rounded-xl bg-white/[0.03] border border-white/10 p-3">
-                                                                <p className="text-[11px] font-bold uppercase tracking-wider text-orange-400">Dealer response</p>
-                                                                <p className="mt-1 text-sm text-zinc-300">{review.dealerResponse.text}</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                <ReviewsSection
+                    key={bike._id}
+                    motorcycleId={bike._id}
+                    motorcycleName={`${bike.brand} ${bike.name}`}
+                />
             </section>
 
-            {/* REVIEW FORM MODAL */}
-            {showReviewForm && (
-                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#0c0c0c] p-6 sm:p-8">
-                        <h3 className="text-xl font-black mb-6 text-white">{editingReview ? "Edit Review" : "Write a Review"}</h3>
-                        <div className="flex items-center gap-2 mb-5">
-                            {[1,2,3,4,5].map((s) => (
-                                <button key={s} type="button" onClick={() => setReviewForm((f) => ({ ...f, rating: s }))} className="transition hover:scale-110">
-                                    <Star size={28} className={s <= reviewForm.rating ? "fill-orange-400 text-orange-400" : "text-zinc-600"} />
-                                </button>
-                            ))}
-                            <span className="ml-2 text-sm text-zinc-500">{reviewForm.rating > 0 ? `${reviewForm.rating}/5` : "Select rating"}</span>
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Category</label>
-                            <select
-                                value={reviewForm.category}
-                                onChange={(e) => setReviewForm((f) => ({ ...f, category: e.target.value }))}
-                                className="w-full rounded-xl border border-white/10 bg-[#111] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50"
-                            >
-                                {CATEGORIES.map((c) => (
-                                    <option key={c.key} value={c.key}>{c.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Title</label>
-                            <input
-                                value={reviewForm.title}
-                                onChange={(e) => setReviewForm((f) => ({ ...f, title: e.target.value }))}
-                                placeholder="Review title"
-                                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50"
-                            />
-                        </div>
-                        <div className="mb-5">
-                            <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Comment</label>
-                            <textarea
-                                value={reviewForm.comment}
-                                onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
-                                rows={4}
-                                placeholder="Share your experience..."
-                                className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50 resize-none"
-                            />
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={submitReview}
-                                disabled={reviewSubmitting}
-                                className="flex-1 rounded-xl bg-orange-500 py-3 text-sm font-bold text-black transition hover:bg-orange-400 disabled:opacity-50"
-                            >
-                                {reviewSubmitting ? "Submitting..." : editingReview ? "Update Review" : "Submit Review"}
-                            </button>
-                            <button onClick={closeReviewForm} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:bg-white/5">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* (Legacy inline review list + modal removed — see ReviewsSection above.) */}
 
             {/* =====================================================
                 FULL SCREEN PHOTO MODAL

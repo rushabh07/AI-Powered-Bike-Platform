@@ -17,6 +17,8 @@ const AIPlan = lazy(() => import("./pages/AIPlan"));
 const Compare = lazy(() => import("./pages/Compare"));
 const UserDashboard = lazy(() => import("./pages/UserDashboard"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const OrderSuccess = lazy(() => import("./pages/OrderSuccess"));
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-[#070707] text-white flex items-center justify-center">
@@ -45,6 +47,16 @@ function App() {
           <Route path="/ai-plan" element={<AIPlan />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/contact" element={<ContactUs />} />
+          <Route path="/checkout/:id" element={
+            <ProtectedRoute allowedRoles={["user", "customer", "provider", "admin"]}>
+              <Checkout />
+            </ProtectedRoute>
+          } />
+          <Route path="/order-success/:id" element={
+            <ProtectedRoute allowedRoles={["user", "customer", "provider", "admin"]}>
+              <OrderSuccess />
+            </ProtectedRoute>
+          } />
 
           {/* Customer / User Panel — authenticated customers only */}
           {[
@@ -55,6 +67,7 @@ function App() {
             ["favorites", "favorites"],
             ["comparisons", "comparisons"],
             ["subscriptions", "subscriptions"],
+            ["orders", "orders"],
             ["enquiries", "enquiries"],
             ["test-rides", "test-rides"],
             ["notifications", "notifications"],
@@ -64,7 +77,7 @@ function App() {
               key={path}
               path={`/user/${path}`}
               element={
-                <ProtectedRoute allowedRoles={["user", "customer"]}>
+                <ProtectedRoute allowedRoles={["user", "customer", "provider", "admin"]}>
                   <UserDashboard section={section} />
                 </ProtectedRoute>
               }

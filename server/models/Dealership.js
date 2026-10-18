@@ -51,6 +51,10 @@ const dealershipSchema = new mongoose.Schema(
             enum: ["in_stock", "limited", "out_of_stock", "unknown"],
             default: "unknown",
         },
+        acceptedPaymentMethods: {
+            type: [String],
+            default: ["cash", "upi", "card", "bank_transfer"],
+        },
         approved: {
             type: Boolean,
             default: true,

@@ -25,6 +25,7 @@ import {
 import Logo from "../components/Logo";
 import UserAvatar from "../components/UserAvatar";
 import ThemeToggle from "../components/ThemeToggle";
+import AdvertisementSlider from "../components/AdvertisementSlider";
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -162,9 +163,14 @@ const RecommendationCard = ({ bike, navigate }) => {
         ? bike.batteryCapacity ? `${bike.batteryCapacity} kWh` : "Electric"
         : typeof bike.mileage === "number" ? `${bike.mileage} KM/L` : bike.mileage;
 
+    const liveAvg = bike.reviewSummary?.totalReviews > 0
+        ? Number(bike.reviewSummary.averageRating)
+        : 0;
     const matchText =
         bike.match ||
-        `${Math.min(99, Math.round(((Number(bike.rating) || 4.5) / 5) * 100))}%`;
+        (liveAvg > 0
+            ? `${Math.min(99, Math.round((liveAvg / 5) * 100))}%`
+            : "NEW");
 
     const imageSrc = bike.image || bike.images?.[0]?.url || "";
 
@@ -211,9 +217,13 @@ const RecommendationCard = ({ bike, navigate }) => {
                     </h3>
                 </div>
 
-                <span className="flex items-center gap-1 text-yellow-400 text-sm">
-                    <FaStar /> {bike.rating}
-                </span>
+                {bike.reviewSummary?.totalReviews > 0 ? (
+                    <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                        <FaStar /> {Number(bike.reviewSummary.averageRating).toFixed(1)} ({bike.reviewSummary.totalReviews})
+                    </span>
+                ) : (
+                    <span className="text-xs text-zinc-500">No reviews yet</span>
+                )}
             </div>
 
             <p className="text-2xl font-black mt-5">
@@ -993,6 +1003,11 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+
+            {/* ================= PROMOTIONS ================= */}
+            <div className="pt-10">
+                <AdvertisementSlider />
+            </div>
 
             {/* ================= RECOMMENDATIONS ================= */}
             <section className="py-24 px-6 bg-[#0c0c0c]">

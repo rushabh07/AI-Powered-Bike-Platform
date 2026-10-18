@@ -16,8 +16,11 @@ const userRoutes = require("./routes/userRoutes");
 const comparisonRoutes = require("./routes/comparisonRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const advertisementRoutes = require("./routes/advertisementRoutes");
+const variantRoutes = require("./routes/variantRoutes");
 const bikeEnquiryRoutes = require("./routes/bikeEnquiryRoutes");
 const dealershipRoutes = require("./routes/dealershipRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 dotenv.config();
 
@@ -34,7 +37,7 @@ app.use(
     })
 );
 
-// Raw body for the Razorpay webhook signature check.
+// Raw body for the subscription webhook signature check.
 // MUST be mounted before express.json().
 app.use("/api/subscription/webhook", express.raw({ type: "*/*" }));
 
@@ -83,8 +86,13 @@ app.use("/api/comparisons", comparisonRoutes);
 // In-app notifications routes
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reviews", reviewRoutes);
+// Spec-shaped nested aliases: /api/motorcycles/:motorcycleId/reviews[/summary]
+app.use("/api/motorcycles", require("./routes/motorcycleReviewRoutes"));
+app.use("/api/advertisements", advertisementRoutes);
+app.use("/api/variants", variantRoutes);
 app.use("/api/bike-enquiries", bikeEnquiryRoutes);
 app.use("/api/dealerships", dealershipRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/api/contact", require("./routes/contactRoutes"));
 
 // Subscription / Premium routes

@@ -375,17 +375,15 @@ const editMessage = async (req, res) => {
 
         const text = content.trim();
 
-        // Replace + drop everything after (old branch is gone)
-        chat.messages[index].content = text;
-        chat.messages = chat.messages.slice(0, index + 1);
-
-        const history = chat.messages.slice(0, -1).map(toHistoryEntry);
+        // Build history from everything BEFORE the edited message.
+        // IMPORTANT: do not mutate the chat until the AI reply succeeds —
+        // otherwise a failed generation would permanently wipe the branch.
+        const history = chat.messages.slice(0, index).map(toHistoryEntry);
 
         let result;
         try {
             result = await generateAdvisorReply(text, history);
         } catch (genError) {
-            await chat.save();
             const status = genError.statusCode || 500;
             return res.status(status).json({
                 success: false,
@@ -395,6 +393,10 @@ const editMessage = async (req, res) => {
                         : "AI Advisor is temporarily unavailable.",
             });
         }
+
+        // Replace + drop everything after (old branch is gone)
+        chat.messages[index].content = text;
+        chat.messages = chat.messages.slice(0, index + 1);
 
         // Deduct context-based credits — only after success
         const charge = result.tokensCharged || 1;

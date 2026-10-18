@@ -76,7 +76,14 @@ const buildRows = (bikes) => {
                 },
                 {
                     label: "Rating",
-                    cells: (b) => cell(b, formatRating(b.rating), b.rating),
+                    cells: (b) => {
+                        const live = b.reviewSummary?.totalReviews > 0
+                            ? Number(b.reviewSummary.averageRating)
+                            : null;
+                        const value = live ?? b.rating;
+                        const label = live !== null ? `${formatRating(value)} (${b.reviewSummary.totalReviews})` : formatRating(value);
+                        return cell(b, label, value);
+                    },
                 },
             ],
         },

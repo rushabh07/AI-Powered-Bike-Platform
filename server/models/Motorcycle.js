@@ -1,5 +1,22 @@
 const mongoose = require("mongoose");
 
+const cityPriceSchema = new mongoose.Schema(
+    {
+        city: {
+            type: String,
+            required: true,
+            trim: true
+        },
+
+        roadTax: {
+            type: Number,
+            required: true,
+            min: 0
+        }
+    },
+    { _id: false }
+);
+
 const motorcycleImageSchema = new mongoose.Schema(
     {
         url: {
@@ -129,9 +146,21 @@ const motorcycleSchema = new mongoose.Schema(
 
         rating: {
             type: Number,
-            default: 4.5,
+            default: 0,
             min: 0,
             max: 5
+        },
+
+        // Cached review aggregates (recalculated from approved Review docs).
+        // 0 / empty = "No reviews yet" — never a fabricated rating.
+        reviewCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        ratingDistribution: {
+            type: [Number],
+            default: [0, 0, 0, 0, 0],
         },
 
         // Old single image field.
@@ -145,6 +174,17 @@ const motorcycleSchema = new mongoose.Schema(
         // New dynamic labeled image gallery
         images: {
             type: [motorcycleImageSchema],
+            default: []
+        },
+
+        exShowroomPrice: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
+        cityPrices: {
+            type: [cityPriceSchema],
             default: []
         },
 

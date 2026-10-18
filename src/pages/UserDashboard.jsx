@@ -28,6 +28,7 @@ import {
     ShoppingCart,
     MapPin,
     ExternalLink,
+    Package,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
@@ -53,6 +54,8 @@ import {
     getChats,
     renameChat,
     deleteChat,
+    getMyOrders,
+    cancelOrder,
     getMyBikeEnquiries,
     cancelBikeEnquiry,
 } from "../services/api";
@@ -76,6 +79,7 @@ const NAV = [
     { id: "favorites", label: "My Favorites", icon: Heart },
     { id: "comparisons", label: "Comparisons", icon: GitCompare },
     { id: "subscriptions", label: "My Subscriptions", icon: IndianRupee },
+    { id: "orders", label: "My Orders", icon: Package },
     { id: "enquiries", label: "My Bike Enquiries", icon: ShoppingCart },
     { id: "test-rides", label: "My Test Rides", icon: Bike },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -1364,6 +1368,198 @@ const SubscriptionsSection = ({ navigate }) => {
 };
 
 // ==============================
+// MY ORDERS
+// ==============================
+const OrdersSection = ({ navigate }) => {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [filter, setFilter] = useState("");
+
+    const load = async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const data = await getMyOrders();
+            setOrders(data.orders || []);
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 401)) {
+                setError(err.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    const doCancel = async (id) => {
+        if (!window.confirm("Cancel this order?")) return;
+        try {
+            await cancelOrder(id);
+            await load();
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 401)) {
+                setError(err.message);
+            }
+        }
+    };
+
+    const shown = filter ? orders.filter((o) => o.paymentMethod === filter) : orders;
+
+    const stageBadge = (o) => {
+        if (o.orderStatus === "cancelled") {
+            return (
+                <span className="rounded-full bg-zinc-500/10 border border-zinc-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Cancelled
+                </span>
+            );
+        }
+        if (o.orderStatus === "completed") {
+            return (
+                <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    Collected / Delivered
+                </span>
+            );
+        }
+        if (o.orderStatus === "ready_for_collection") {
+            return (
+                <span className="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                    Ready for Collection
+                </span>
+            );
+        }
+        if (o.orderStatus === "confirmed") {
+            return (
+                <span className="rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                    {o.paymentStatus === "paid" ? "Confirmed (Paid)" : "Confirmed — Pay at Showroom"}
+                </span>
+            );
+        }
+        return (
+            <span className="rounded-full bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-yellow-400">
+                Awaiting Confirmation
+            </span>
+        );
+    };
+
+    return (
+        <div>
+            <SectionTitle
+                title="My Orders"
+                subtitle="Track your offline dealership purchase requests and vehicle handovers."
+                right={
+                    <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        aria-label="Filter by purchase method"
+                        className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-zinc-300 outline-none"
+                    >
+                        <option value="">All orders</option>
+                        <option value="offline">Offline purchases</option>
+                    </select>
+                }
+            />
+            {error && (
+                <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {error}
+                </div>
+            )}
+            {loading ? (
+                <Loading text="Loading orders..." />
+            ) : shown.length === 0 ? (
+                <EmptyBox
+                    icon={<Package size={26} />}
+                    title="No orders yet"
+                    subtitle="Reserve a motorcycle and complete purchase at an authorized dealership."
+                    action={
+                        <Link
+                            to="/motorcycles"
+                            className="mt-5 inline-block rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-black transition hover:bg-orange-400"
+                        >
+                            Explore Motorcycles
+                        </Link>
+                    }
+                />
+            ) : (
+                <div className="space-y-4">
+                    {shown.map((o) => (
+                        <div
+                            key={o._id}
+                            className="rounded-2xl border border-white/10 bg-[#0c0c0c] p-5 transition hover:border-orange-500/20"
+                        >
+                            <div className="flex items-start gap-4">
+                                {o.motorcycle?.image ? (
+                                    <img src={o.motorcycle.image} alt={o.motorcycle.name} className="h-20 w-20 shrink-0 rounded-xl object-cover" />
+                                ) : (
+                                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-zinc-800">
+                                        <Package size={24} className="text-zinc-600" />
+                                    </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                        <div>
+                                            <p className="font-mono text-xs text-orange-400">{o.orderNumber}</p>
+                                            <p className="mt-0.5 truncate font-bold">
+                                                {o.motorcycle?.brand} {o.motorcycle?.name}
+                                                {o.selectedColor ? ` • ${o.selectedColor}` : ""}
+                                            </p>
+                                        </div>
+                                        {stageBadge(o)}
+                                    </div>
+                                    <p className="mt-1.5 text-sm font-black text-orange-400 flex flex-wrap items-center gap-2">
+                                        ₹{Number(o.totalAmount || 0).toLocaleString("en-IN")}
+                                        <span className="rounded bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-zinc-300">
+                                            Offline Dealership Purchase
+                                        </span>
+                                        <span
+                                            className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                                o.paymentStatus === "paid"
+                                                    ? "bg-emerald-500/10 text-emerald-400"
+                                                    : "bg-yellow-500/10 text-yellow-400"
+                                            }`}
+                                        >
+                                            {o.paymentStatus === "paid" ? `Paid (${o.offlinePaymentType || "Offline"})` : "Payment Pending at Dealership"}
+                                        </span>
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                                        <span className="flex items-center gap-1"><MapPin size={11} />{o.dealership?.name || "Dealership"}</span>
+                                        <span>Ordered: {fmtDate(o.createdAt)}</span>
+                                        {o.visitDate && (
+                                            <span className="text-orange-400/90 font-medium">
+                                                Visit Date: {fmtDate(o.visitDate)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => navigate(`/order-success/${o._id}`)}
+                                            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-orange-500/40 hover:text-orange-400"
+                                        >
+                                            <Eye size={13} /> View Request & Tracking
+                                        </button>
+                                        {["pending_dealership_confirmation", "confirmed"].includes(o.orderStatus) && o.paymentStatus !== "paid" && (
+                                            <button
+                                                onClick={() => doCancel(o._id)}
+                                                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:border-red-500/40 hover:text-red-400"
+                                            >
+                                                Cancel Request
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ==============================
 // NOTIFICATIONS
 // ==============================
 const NotificationsSection = () => {
@@ -2181,6 +2377,9 @@ export default function UserDashboard({ section = "dashboard" }) {
                     )}
                     {section === "subscriptions" && (
                         <SubscriptionsSection navigate={navigate} />
+                    )}
+                    {section === "orders" && (
+                        <OrdersSection navigate={navigate} />
                     )}
                     {section === "plan" && (
                         <PlanSection navigate={navigate} />

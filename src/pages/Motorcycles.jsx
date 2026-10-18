@@ -1107,14 +1107,26 @@ function BikeCard({
 
                 <div className="mt-3 flex items-center gap-2">
 
-                    <Star
-                        size={15}
-                        className="fill-orange-500 text-orange-500"
-                    />
+                    {bike.reviewSummary?.totalReviews > 0 ? (
+                        <>
+                            <Star
+                                size={15}
+                                className="fill-orange-500 text-orange-500"
+                            />
 
-                    <span className="text-sm font-medium">
-                        {bike.rating}
-                    </span>
+                            <span className="text-sm font-medium">
+                                {Number(bike.reviewSummary.averageRating).toFixed(1)}
+                            </span>
+
+                            <span className="text-xs text-zinc-500">
+                                ({bike.reviewSummary.totalReviews})
+                            </span>
+                        </>
+                    ) : (
+                        <span className="text-xs text-zinc-500">
+                            No reviews yet
+                        </span>
+                    )}
 
                     <span className="text-zinc-700">
                         •

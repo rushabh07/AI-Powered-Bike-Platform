@@ -33,11 +33,16 @@ import {
     Palette,
     Store,
     ClipboardList,
+    Megaphone,
+    Package,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
 import AISubscriptionsSection from "../components/admin/AISubscriptionsSection";
 import AIAnalyticsSection from "../components/admin/AIAnalyticsSection";
+import AdvertisementsSection from "../components/admin/AdvertisementsSection";
+import BikeOrdersSection from "../components/admin/BikeOrdersSection";
+import ReviewsManagementSection from "../components/admin/ReviewsManagementSection";
 import { getAdminSubscriptionStats } from "../services/api";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
@@ -1267,7 +1272,10 @@ const AdminDashboard = () => {
                                 { id: "colors", label: "Colors", icon: <Palette size={19} /> },
                                 { id: "enquiries", label: "Bike Enquiries", icon: <ClipboardList size={19} /> },
                                 { id: "dealerships", label: "Dealerships", icon: <Store size={19} /> },
+                                { id: "orders", label: "Orders", icon: <Package size={19} /> },
+                                { id: "reviews", label: "Reviews", icon: <Star size={19} /> },
                                 { id: "messages", label: "Messages", icon: <Mail size={19} /> },
+                                { id: "advertisements", label: "Advertisements", icon: <Megaphone size={19} /> },
                                 { id: "subscriptions", label: "AI Subscriptions", icon: <Crown size={19} /> },
                                 { id: "analytics", label: "AI Analytics", icon: <TrendingUp size={19} /> },
                                 { id: "database", label: "Database", icon: <Database size={19} /> },
@@ -1356,7 +1364,10 @@ const AdminDashboard = () => {
                                     {activeTab === "colors" && "Colors"}
                                     {activeTab === "enquiries" && "Bike Enquiries"}
                                     {activeTab === "dealerships" && "Dealerships"}
+                                    {activeTab === "orders" && "Orders"}
+                                    {activeTab === "reviews" && "Reviews"}
                                     {activeTab === "messages" && "Messages"}
+                                    {activeTab === "advertisements" && "Advertisements"}
                                     {activeTab === "subscriptions" && "AI Subscriptions"}
                                     {activeTab === "analytics" && "AI Analytics"}
                                     {activeTab === "database" && "Database"}
@@ -1369,7 +1380,10 @@ const AdminDashboard = () => {
                                     {activeTab === "colors" && "Manage color variations for each motorcycle."}
                                     {activeTab === "enquiries" && "Review test rides and purchase enquiries."}
                                     {activeTab === "dealerships" && "Manage authorized dealerships."}
+                                    {activeTab === "orders" && "Online and offline motorcycle orders."}
+                                    {activeTab === "reviews" && "Moderate user reviews and verified-purchase ratings."}
                                     {activeTab === "messages" && "Contact form submissions from customers."}
+                                    {activeTab === "advertisements" && "Manage homepage promotional banners."}
                                     {activeTab === "subscriptions" && "Monitor active subscriptions, user token allowances, and payment statuses."}
                                     {activeTab === "analytics" && "Analyze subscription volume growth, revenue timelines, and plan distributions."}
                                     {activeTab === "database" && "Inspect collections, brand/category breakdown and users."}
@@ -1935,9 +1949,24 @@ const AdminDashboard = () => {
                             <DealershipsSection />
                         )}
 
+                        {/* ORDERS TAB */}
+                        {activeTab === "orders" && (
+                            <BikeOrdersSection />
+                        )}
+
+                        {/* REVIEWS TAB */}
+                        {activeTab === "reviews" && (
+                            <ReviewsManagementSection />
+                        )}
+
                         {/* MESSAGES TAB */}
                         {activeTab === "messages" && (
                             <MessagesSection />
+                        )}
+
+                        {/* ADVERTISEMENTS TAB */}
+                        {activeTab === "advertisements" && (
+                            <AdvertisementsSection />
                         )}
 
                         {/* DATABASE TAB */}

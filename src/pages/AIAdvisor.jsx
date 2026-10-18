@@ -241,7 +241,9 @@ const RecommendationCards = ({ bikes, navigate }) => {
                                     size={12}
                                     className="fill-yellow-400"
                                 />
-                                {bike.rating ?? "N/A"}
+                                {bike.reviewSummary?.totalReviews > 0
+                                    ? `${Number(bike.reviewSummary.averageRating).toFixed(1)} (${bike.reviewSummary.totalReviews})`
+                                    : (bike.rating ?? "N/A")}
                             </span>
                         </div>
 
@@ -353,6 +355,7 @@ export default function AIAdvisor() {
     // Message actions
     const [editingId, setEditingId] = useState(null);
     const [editValue, setEditValue] = useState("");
+    const [editSubmitting, setEditSubmitting] = useState(false);
     const [regeneratingId, setRegeneratingId] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
 
@@ -688,8 +691,9 @@ export default function AIAdvisor() {
 
     const submitEdit = async () => {
         const content = editValue.trim();
-        if (!content || !activeChatId) return;
+        if (!content || !activeChatId || editSubmitting) return;
         setError("");
+        setEditSubmitting(true);
         try {
             const response = await fetch(
                 `${CHATS_API}/${activeChatId}/messages/${editingId}`,
@@ -716,6 +720,8 @@ export default function AIAdvisor() {
         } catch (err) {
             console.error("Edit error:", err);
             setError(err.message || "Could not edit message.");
+        } finally {
+            setEditSubmitting(false);
         }
     };
 
@@ -1268,11 +1274,14 @@ export default function AIAdvisor() {
                                                                         submitEdit
                                                                     }
                                                                     disabled={
-                                                                        !editValue.trim()
+                                                                        !editValue.trim() ||
+                                                                        editSubmitting
                                                                     }
                                                                     className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-black transition hover:bg-orange-400 disabled:opacity-40"
                                                                 >
-                                                                    Send
+                                                                    {editSubmitting
+                                                                        ? "Sending..."
+                                                                        : "Send"}
                                                                 </button>
                                                             </div>
                                                         </div>

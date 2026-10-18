@@ -432,6 +432,144 @@ const contactSupportEmail = (msg, supportEmail, adminUrl) => {
     });
 };
 
+const orderRefs = (order, dealership) => ({
+    ref: order.orderNumber,
+    name: order.customerDetails?.name || "rider",
+    email: order.customerDetails?.email || "",
+    phone: order.customerDetails?.phone || "",
+    visitDate: order.visitDate
+        ? fmtDate(order.visitDate)
+        : order.customerDetails?.preferredVisitDate || "To be scheduled",
+    bike: `${order.motorcycleSnapshot?.brand || order.motorcycle?.brand || ""} ${order.motorcycleSnapshot?.name || order.motorcycle?.name || "motorcycle"}`.trim(),
+    color: order.selectedColor || "",
+    dealer: dealership?.name || "the dealership",
+    dealerAddr: dealership?.address || "",
+    dealerPhone: dealership?.phone || "",
+});
+
+const sendOrderConfirmationEmail = (order, dealership) => {
+    const r = orderRefs(order, dealership);
+    const data = {
+        heading: "Offline Purchase Request Received",
+        greeting: r.name,
+        intro: `We have received your offline motorcycle purchase request <strong>${esc(r.ref)}</strong> for the <strong>${esc(r.bike)}</strong>. Your request is now awaiting confirmation from the authorized dealership.`,
+        rows: [
+            { label: "Order Reference", value: r.ref },
+            { label: "Motorcycle", value: `${r.bike}${r.color ? ` (${r.color})` : ""}` },
+            { label: "Dealership", value: `${r.dealer}, ${r.dealerAddr}` },
+            { label: "Dealership Phone", value: r.dealerPhone || "—" },
+            { label: "Preferred Visit Date", value: r.visitDate },
+            { label: "Total Estimated Amount", value: inr(order.totalAmount) },
+            { label: "Payment Method", value: "Offline at Dealership" },
+            { label: "Payment Status", value: "Pending (Pay at showroom)" },
+            { label: "Request Status", value: "Awaiting Dealership Confirmation" },
+        ],
+        note: "Important: Payment is not made online. Once the dealership confirms your request, please visit the showroom with valid identification to complete the purchase and payment in person.",
+        cta: { label: "Track My Purchase Request", url: `${siteUrl()}/order-success/${order._id}` },
+    };
+    return sendIdempotentEmail({
+        key: `order:${order._id}:confirmation`,
+        to: r.email,
+        subject: `Purchase Request Received – ${r.bike} (${r.ref}) – MOTOAI`,
+        html: layout(data),
+        text: textLayout(data),
+        entity: "Order",
+        entityId: order._id,
+        event: "confirmation",
+    });
+};
+
+const sendOrderStatusEmail = (order, dealership) => {
+    const r = orderRefs(order, dealership);
+    let heading = "Order Status Update";
+    let intro = `Your purchase request <strong>${esc(r.ref)}</strong> is now <strong>${esc(order.orderStatus.replace(/_/g, " "))}</strong>. Payment status: <strong>${esc(order.paymentStatus)}</strong>.`;
+    let note = "";
+
+    if (order.orderStatus === "confirmed" && order.paymentStatus === "pending") {
+        heading = "Purchase Request Confirmed by Dealership!";
+        intro = `Great news! <strong>${esc(r.dealer)}</strong> has confirmed your purchase request for <strong>${esc(r.bike)}</strong>. Your motorcycle has been reserved.`;
+        note = `Please visit ${r.dealer} on your scheduled date (${r.visitDate}) to inspect the bike and complete payment. Accepted methods at showroom: Cash, UPI, Debit/Credit Card, Bank Transfer.`;
+    } else if (order.paymentStatus === "paid" && order.orderStatus === "confirmed") {
+        heading = "Payment Verified at Dealership";
+        intro = `Your offline payment of <strong>${inr(order.totalAmount)}</strong> for <strong>${esc(r.bike)}</strong> (${esc(r.ref)}) has been verified by ${esc(r.dealer)}.`;
+        note = `Payment method: ${order.offlinePaymentType || "Offline"}${order.offlinePaymentReference ? ` (Ref: ${order.offlinePaymentReference})` : ""}. Your motorcycle is now being prepared for collection/delivery.`;
+    } else if (order.orderStatus === "ready_for_collection") {
+        heading = "Your Motorcycle is Ready for Collection!";
+        intro = `Your <strong>${esc(r.bike)}</strong> is inspected, prepped, and ready for pickup at <strong>${esc(r.dealer)}</strong>!`;
+        note = `Please bring your order reference (${r.ref}) and driving licence to ${r.dealerAddr}.`;
+    } else if (order.orderStatus === "completed") {
+        heading = "Congratulations on Your New Ride!";
+        intro = `Your purchase of <strong>${esc(r.bike)}</strong> (${esc(r.ref)}) is completed. Thank you for choosing MOTOAI and ${esc(r.dealer)}.`;
+        note = "Ride safely! Remember to wear a helmet and follow road safety regulations.";
+    } else if (order.orderStatus === "cancelled") {
+        heading = "Purchase Request Cancelled";
+        intro = `Your purchase request <strong>${esc(r.ref)}</strong> has been cancelled.`;
+        if (order.cancelReason) {
+            note = `Reason: ${order.cancelReason}`;
+        }
+    }
+
+    const data = {
+        heading,
+        greeting: r.name,
+        intro,
+        rows: [
+            { label: "Order Reference", value: r.ref },
+            { label: "Motorcycle", value: `${r.bike}${r.color ? ` (${r.color})` : ""}` },
+            { label: "Dealership", value: `${r.dealer} (${r.dealerPhone})` },
+            { label: "Dealership Address", value: r.dealerAddr },
+            { label: "Order Status", value: order.orderStatus.replace(/_/g, " ") },
+            { label: "Payment Status", value: order.paymentStatus },
+            { label: "Total Amount", value: inr(order.totalAmount) },
+        ],
+        note,
+        cta: { label: "Track My Order", url: `${siteUrl()}/order-success/${order._id}` },
+    };
+    return sendIdempotentEmail({
+        key: `order:${order._id}:status:${order.orderStatus}:${order.paymentStatus}`,
+        to: r.email,
+        subject: `${heading} – MOTOAI (${r.ref})`,
+        html: layout(data),
+        text: textLayout(data),
+        entity: "Order",
+        entityId: order._id,
+        event: `status-${order.orderStatus}-${order.paymentStatus}`,
+    });
+};
+
+const sendOrderDealerEmail = (order, dealership) => {
+    if (!dealership?.email) return { sent: false, reason: "no_recipient", duplicate: false };
+    const r = orderRefs(order, dealership);
+    const data = {
+        heading: "New Dealership Purchase Request",
+        greeting: "Team",
+        intro: `A new offline purchase request has been submitted for <strong>${esc(r.dealer)}</strong>. Please review and confirm this request in your dashboard.`,
+        rows: [
+            { label: "Order Reference", value: r.ref },
+            { label: "Customer Name", value: order.customerDetails?.name || "—" },
+            { label: "Customer Phone", value: order.customerDetails?.phone || "—" },
+            { label: "Customer Email", value: order.customerDetails?.email || "—" },
+            { label: "Preferred Visit Date", value: r.visitDate },
+            { label: "Motorcycle", value: `${r.bike}${r.color ? ` (${r.color})` : ""}` },
+            { label: "Estimated Total", value: inr(order.totalAmount) },
+            { label: "Preferred Payment", value: order.offlinePaymentType || "Showroom Counter" },
+            { label: "Delivery Preference", value: order.deliveryMethod === "delivery" ? "Home Delivery" : "Showroom Collection" },
+        ],
+        note: "Please log in to your provider dashboard to confirm availability and schedule the customer's showroom visit.",
+        cta: { label: "Open Dealership Dashboard", url: `${siteUrl()}/provider` },
+    };
+    return sendIdempotentEmail({
+        key: `order:${order._id}:dealer-new`,
+        to: dealership.email,
+        subject: `New Offline Purchase Request – ${r.ref} (${r.bike})`,
+        html: layout(data),
+        text: textLayout(data),
+        entity: "Order",
+        entityId: order._id,
+        event: "dealer-new",
+    });
+};
+
 module.exports = {
     isConfigured,
     resetTransporter,
@@ -465,4 +603,7 @@ module.exports = {
     sendTestRideDealerEmail,
     sendDealershipPurchaseNotificationEmail,
     sendSupportNotificationEmail,
+    sendOrderConfirmationEmail,
+    sendOrderStatusEmail,
+    sendOrderDealerEmail,
 };
