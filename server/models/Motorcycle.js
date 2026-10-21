@@ -39,7 +39,6 @@ const colorVariationSchema = new mongoose.Schema(
         name: { type: String, required: true, trim: true },
         hexCode: { type: String, required: true, trim: true },
         image: { type: String, default: "", trim: true },
-        model3DUrl: { type: String, default: "", trim: true },
         available: { type: Boolean, default: true },
     },
     { _id: true }
@@ -186,13 +185,6 @@ const motorcycleSchema = new mongoose.Schema(
         cityPrices: {
             type: [cityPriceSchema],
             default: []
-        },
-
-        // Optional exact-model 3D asset (GLB/GLTF URL). Empty = no 3D viewer.
-        model3DUrl: {
-            type: String,
-            default: "",
-            trim: true
         },
 
         description: {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PenLine } from "lucide-react";
 import { RatingSummary } from "./RatingSummary";
@@ -45,6 +45,12 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
 
     const [eligible, setEligible] = useState(false);
     const [hasReviewed, setHasReviewed] = useState(false);
+    // "none" | "pending" | "completed" — lets us explain WHY a review
+    // is locked (purchase pending vs never purchased).
+    const [purchaseState, setPurchaseState] = useState("none");
+    const [purchaseReason, setPurchaseReason] = useState("");
+    const [myReviewId, setMyReviewId] = useState(null);
+    const [myReviewData, setMyReviewData] = useState(null);
 
     const [showForm, setShowForm] = useState(false);
     const [editingReview, setEditingReview] = useState(null);
@@ -108,14 +114,24 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
     const refreshEligibility = useCallback(async () => {
         if (!motorcycleId || !isLoggedIn) {
             setEligible(false);
+            setHasReviewed(false);
+            setPurchaseState("none");
+            setPurchaseReason("");
+            setMyReviewId(null);
+            setMyReviewData(null);
             return;
         }
         try {
             const data = await getReviewEligibility(motorcycleId);
             setEligible(!!data.eligible && !data.hasReviewed);
             setHasReviewed(!!data.hasReviewed);
+            setPurchaseState(data.purchaseState || (data.eligible ? "completed" : "none"));
+            setPurchaseReason(data.reason || "");
+            setMyReviewId(data.reviewId || null);
+            setMyReviewData(data.review || null);
         } catch {
             setEligible(false);
+            setPurchaseState("none");
         }
     }, [motorcycleId, isLoggedIn]);
 
@@ -137,6 +153,16 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
         return () => window.removeEventListener("storage", onStorage);
     }, [refreshEligibility]);
 
+    // The signed-in customer's own review (from the loaded list, falling
+    // back to the copy returned by the eligibility endpoint).
+    const myReview = useMemo(() => {
+        if (!myReviewId) return null;
+        return (
+            reviews.find((r) => r._id === myReviewId) ||
+            (myReviewData && myReviewData._id === myReviewId ? myReviewData : null)
+        );
+    }, [reviews, myReviewId, myReviewData]);
+
     // ---- actions ----
     const handleSortChange = (value) => {
         setSort(value);
@@ -153,11 +179,21 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
             navigate("/login", { state: { from: `/motorcycles/${motorcycleId}` } });
             return;
         }
-        if (!review && !eligible && currentUser?.role !== "admin") {
-            pushToast("error", hasReviewed ? "You have already reviewed this motorcycle." : "Purchase this motorcycle to share your review.");
+        // No explicit review passed → editing my own existing review.
+        const target = review || (hasReviewed ? myReview : null);
+        if (!target && !eligible && currentUser?.role !== "admin") {
+            pushToast(
+                "error",
+                hasReviewed
+                    ? "You have already reviewed this motorcycle."
+                    : purchaseState === "pending"
+                    ? purchaseReason ||
+                      "Your purchase is still being processed. The review unlocks once it is completed."
+                    : "Purchase this motorcycle to share your review."
+            );
             return;
         }
-        setEditingReview(review);
+        setEditingReview(target);
         setFormError("");
         setShowForm(true);
     };
@@ -246,13 +282,32 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
                         <PenLine size={15} />
                         Write a Review
                     </button>
+                ) : hasReviewed ? (
+                    /* Already reviewed — show their review + an edit option. */
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-400">
+                            You have already reviewed this motorcycle.
+                        </span>
+                        <button
+                            onClick={() => openForm()}
+                            disabled={!myReview}
+                            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-zinc-300 transition outline-none hover:border-orange-500/40 hover:text-orange-400 focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-50"
+                        >
+                            <PenLine size={13} />
+                            Edit your review
+                        </button>
+                    </div>
+                ) : purchaseState === "pending" ? (
+                    /* Purchase in progress — a review unlocks once it completes. */
+                    <span className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs font-medium text-amber-300">
+                        {purchaseReason ||
+                            "Your purchase is still being processed. The review unlocks once it is completed."}
+                    </span>
                 ) : (
                     <p className="rounded-xl border border-white/10 px-4 py-2.5 text-xs text-zinc-500">
                         {!isLoggedIn
                             ? "Login and purchase this motorcycle to share your review."
-                            : hasReviewed
-                              ? "You have already reviewed this motorcycle."
-                              : "Purchase this motorcycle to share your review."}
+                            : "Purchase this motorcycle to share your experience."}
                     </p>
                 )}
             </div>

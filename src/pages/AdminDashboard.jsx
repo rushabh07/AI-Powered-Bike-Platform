@@ -35,6 +35,8 @@ import {
     ClipboardList,
     Megaphone,
     Package,
+    Newspaper,
+    LayoutTemplate,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
@@ -43,6 +45,8 @@ import AIAnalyticsSection from "../components/admin/AIAnalyticsSection";
 import AdvertisementsSection from "../components/admin/AdvertisementsSection";
 import BikeOrdersSection from "../components/admin/BikeOrdersSection";
 import ReviewsManagementSection from "../components/admin/ReviewsManagementSection";
+import MotorcycleUpdatesSection from "../components/admin/MotorcycleUpdatesSection";
+import HomepageManagementSection from "../components/admin/HomepageManagementSection";
 import { getAdminSubscriptionStats } from "../services/api";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
@@ -68,7 +72,6 @@ const emptyForm = {
     topSpeed: "",
     image: "",
     description: "",
-    model3DUrl: "",
     images: []
 };
 
@@ -455,7 +458,7 @@ const ColorsSection = ({ motorcycles, apiUrl }) => {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
     const [editingColor, setEditingColor] = useState(null);
-    const [colorForm, setColorForm] = useState({ name: "", hexCode: "", image: "", model3DUrl: "", available: true });
+    const [colorForm, setColorForm] = useState({ name: "", hexCode: "", image: "", available: true });
 
     const fetchColors = async (bikeId) => {
         if (!bikeId) return;
@@ -477,18 +480,18 @@ const ColorsSection = ({ motorcycles, apiUrl }) => {
     }, [selectedBike]);
 
     const resetForm = () => {
-        setColorForm({ name: "", hexCode: "", image: "", model3DUrl: "", available: true });
+        setColorForm({ name: "", hexCode: "", image: "", available: true });
         setEditingColor(null);
     };
 
     const openEdit = (color) => {
         setEditingColor(color);
-        setColorForm({ name: color.name || "", hexCode: color.hexCode || "", image: color.image || "", model3DUrl: color.model3DUrl || "", available: color.available !== false });
+        setColorForm({ name: color.name || "", hexCode: color.hexCode || "", image: color.image || "", available: color.available !== false });
     };
 
     const addColor = () => {
         setEditingColor(null);
-        setColorForm({ name: "", hexCode: "", image: "", model3DUrl: "", available: true });
+        setColorForm({ name: "", hexCode: "", image: "", available: true });
     };
 
     const handleSave = async () => {
@@ -498,8 +501,8 @@ const ColorsSection = ({ motorcycles, apiUrl }) => {
         setMsg("");
         try {
             const updatedColors = editingColor
-                ? colors.map((c) => (c._id === editingColor._id ? { ...c, ...colorForm, name: colorForm.name.trim(), hexCode: colorForm.hexCode.trim(), image: colorForm.image.trim(), model3DUrl: colorForm.model3DUrl.trim() } : c))
-                : [...colors, { ...colorForm, name: colorForm.name.trim(), hexCode: colorForm.hexCode.trim(), image: colorForm.image.trim(), model3DUrl: colorForm.model3DUrl.trim() }];
+                ? colors.map((c) => (c._id === editingColor._id ? { ...c, ...colorForm, name: colorForm.name.trim(), hexCode: colorForm.hexCode.trim(), image: colorForm.image.trim() } : c))
+                : [...colors, { ...colorForm, name: colorForm.name.trim(), hexCode: colorForm.hexCode.trim(), image: colorForm.image.trim() }];
             const res = await fetch(`${apiUrl}/${selectedBike}/colors`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -578,10 +581,6 @@ const ColorsSection = ({ motorcycles, apiUrl }) => {
                             <label className="block text-xs font-semibold text-zinc-400 sm:col-span-2">
                                 Image URL
                                 <input value={colorForm.image} onChange={(e) => setColorForm({ ...colorForm, image: e.target.value })} placeholder="https://..." className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50" />
-                            </label>
-                            <label className="block text-xs font-semibold text-zinc-400 sm:col-span-2">
-                                3D Model URL (GLB/GLTF, empty = photos only)
-                                <input value={colorForm.model3DUrl} onChange={(e) => setColorForm({ ...colorForm, model3DUrl: e.target.value })} placeholder="https://.../bike-red.glb" className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50" />
                             </label>
                         </div>
                         <div className="mt-4 flex items-center gap-3">
@@ -993,7 +992,6 @@ const AdminDashboard = () => {
             topSpeed: bike.topSpeed ?? "",
             image: bike.image || "",
             description: bike.description || "",
-            model3DUrl: bike.model3DUrl || "",
             images: Array.isArray(bike.images)
                 ? bike.images
                 : bike.image
@@ -1088,8 +1086,7 @@ const AdminDashboard = () => {
                         url: image.url.trim(),
                         label: image.label.trim()
                     })),
-                description: form.description.trim(),
-                model3DUrl: (form.model3DUrl || "").trim()
+                description: form.description.trim()
             };
 
             const url = editingId
@@ -1276,6 +1273,8 @@ const AdminDashboard = () => {
                                 { id: "reviews", label: "Reviews", icon: <Star size={19} /> },
                                 { id: "messages", label: "Messages", icon: <Mail size={19} /> },
                                 { id: "advertisements", label: "Advertisements", icon: <Megaphone size={19} /> },
+                                { id: "updates", label: "Motorcycle Updates", icon: <Newspaper size={19} /> },
+                                { id: "homepage", label: "Homepage Management", icon: <LayoutTemplate size={19} /> },
                                 { id: "subscriptions", label: "AI Subscriptions", icon: <Crown size={19} /> },
                                 { id: "analytics", label: "AI Analytics", icon: <TrendingUp size={19} /> },
                                 { id: "database", label: "Database", icon: <Database size={19} /> },
@@ -1368,6 +1367,8 @@ const AdminDashboard = () => {
                                     {activeTab === "reviews" && "Reviews"}
                                     {activeTab === "messages" && "Messages"}
                                     {activeTab === "advertisements" && "Advertisements"}
+                                    {activeTab === "updates" && "Motorcycle Updates"}
+                                    {activeTab === "homepage" && "Homepage Management"}
                                     {activeTab === "subscriptions" && "AI Subscriptions"}
                                     {activeTab === "analytics" && "AI Analytics"}
                                     {activeTab === "database" && "Database"}
@@ -1384,6 +1385,8 @@ const AdminDashboard = () => {
                                     {activeTab === "reviews" && "Moderate user reviews and verified-purchase ratings."}
                                     {activeTab === "messages" && "Contact form submissions from customers."}
                                     {activeTab === "advertisements" && "Manage homepage promotional banners."}
+                                    {activeTab === "updates" && "Create and manage motorcycle news, launches, and updates."}
+                                    {activeTab === "homepage" && "Control which sections appear on the public homepage and manage their content."}
                                     {activeTab === "subscriptions" && "Monitor active subscriptions, user token allowances, and payment statuses."}
                                     {activeTab === "analytics" && "Analyze subscription volume growth, revenue timelines, and plan distributions."}
                                     {activeTab === "database" && "Inspect collections, brand/category breakdown and users."}
@@ -1969,6 +1972,16 @@ const AdminDashboard = () => {
                             <AdvertisementsSection />
                         )}
 
+                        {/* MOTORCYCLE UPDATES TAB */}
+                        {activeTab === "updates" && (
+                            <MotorcycleUpdatesSection />
+                        )}
+
+                        {/* HOMEPAGE MANAGEMENT TAB */}
+                        {activeTab === "homepage" && (
+                            <HomepageManagementSection />
+                        )}
+
                         {/* DATABASE TAB */}
                         {activeTab === "database" && (
                             <DatabaseSection
@@ -2107,14 +2120,6 @@ const AdminDashboard = () => {
                                             value={form.brandLogo}
                                             onChange={handleChange}
                                             placeholder="https://... (empty = first-letter badge)"
-                                        />
-
-                                        <Input
-                                            label="3D Model URL (GLB/GLTF, empty = photos only)"
-                                            name="model3DUrl"
-                                            value={form.model3DUrl || ""}
-                                            onChange={handleChange}
-                                            placeholder="https://.../bike.glb"
                                         />
 
                                         <Select

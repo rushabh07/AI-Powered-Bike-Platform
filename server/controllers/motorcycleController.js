@@ -302,7 +302,6 @@ const createMotorcycle = async (req, res) => {
             image,
             images,
             description,
-            model3DUrl,
             colors
         } = req.body;
 
@@ -394,8 +393,6 @@ const createMotorcycle = async (req, res) => {
             images: formattedImages,
 
             description: description || "",
-
-            model3DUrl: model3DUrl ? String(model3DUrl).trim() : "",
 
             ...(Array.isArray(colors) ? { colors } : {}),
 

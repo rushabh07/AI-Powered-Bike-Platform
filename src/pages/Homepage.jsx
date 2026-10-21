@@ -9,9 +9,6 @@ import {
     FaCheckCircle,
     FaShieldAlt,
     FaBolt,
-    FaUser,
-    FaBars,
-    FaTimes,
     FaHeart,
     FaExchangeAlt,
     FaMapMarkerAlt,
@@ -23,9 +20,9 @@ import {
     FaChargingStation
 } from "react-icons/fa";
 import Logo from "../components/Logo";
-import UserAvatar from "../components/UserAvatar";
-import ThemeToggle from "../components/ThemeToggle";
+import Navbar from "../components/Navbar";
 import AdvertisementSlider from "../components/AdvertisementSlider";
+import LatestUpdatesSection from "../components/LatestUpdatesSection";
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -292,70 +289,33 @@ const RecommendationCard = ({ bike, navigate }) => {
 function Homepage() {
     const navigate = useNavigate();
 
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-    // Load logged-in user (shows avatar + dashboard links in navbar)
+    // CMS-driven homepage configuration (published)
+    const [homeConfig, setHomeConfig] = useState(null);
+    const [homeConfigLoading, setHomeConfigLoading] = useState(true);
     useEffect(() => {
-        const loadUser = () => {
-            try {
-                const token = localStorage.getItem("token");
-                const stored = localStorage.getItem("user");
-                if (token && stored) {
-                    setCurrentUser(JSON.parse(stored));
-                } else {
-                    setCurrentUser(null);
-                }
-            } catch {
-                setCurrentUser(null);
-            }
-        };
-        loadUser();
-        window.addEventListener("storage", loadUser);
-        return () => window.removeEventListener("storage", loadUser);
+        fetch("http://localhost:5000/api/homepage")
+            .then((res) => (res.ok ? res.json() : { configured: false, sections: [] }))
+            .then((data) => setHomeConfig(data))
+            .catch(() => setHomeConfig({ configured: false, sections: [] }))
+            .finally(() => setHomeConfigLoading(false));
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setCurrentUser(null);
-        setUserMenuOpen(false);
-        setMenuOpen(false);
-        navigate("/login");
+    // Config helpers: section(key) returns the published section or null
+    const section = (key) => {
+        if (!homeConfig?.configured) return null;
+        return homeConfig.sections.find((s) => s.sectionKey === key) || null;
     };
-
-    const dashboardPath = currentUser?.role === "admin"
-        ? "/admin"
-        : currentUser?.role === "provider"
-            ? "/provider"
-            : "/user/dashboard";
+    const isSectionOn = (key) => {
+        if (!homeConfig?.configured) return true; // no config → show everything (fallback)
+        const s = section(key);
+        return s ? s.enabled : false;
+    };
 
     // SEARCH
     const [searchQuery, setSearchQuery] = useState("");
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
-
-    // Plan badge (backend is the source of truth)
-    const [planBadge, setPlanBadge] = useState(null);
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            setPlanBadge(null);
-            return;
-        }
-        fetch("http://localhost:5000/api/subscription/status", {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-                if (data && data.success) setPlanBadge(data);
-            })
-            .catch(() => {
-                /* badge stays hidden */
-            });
-    }, [currentUser]);
 
     // DATABASE-DRIVEN SECTIONS (no hardcoded bikes/categories)
     const [featuredBikes, setFeaturedBikes] = useState([]);
@@ -403,7 +363,6 @@ function Homepage() {
     // NAVIGATION
     // ==============================
     const go = (path) => {
-        setMenuOpen(false);
         setShowSuggestions(false);
         navigate(path);
     };
@@ -486,210 +445,11 @@ function Homepage() {
         <div className="min-h-screen bg-[#070707] text-white">
 
             {/* ================= NAVBAR ================= */}
-            <nav className="fixed top-0 left-0 right-0 z-50 bg-[#070707]/95 backdrop-blur-xl border-b border-gray-800">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-
-                    <Logo onClick={() => go("/")} />
-
-                    {/* DESKTOP MENU */}
-                    <div className="hidden md:flex items-center gap-8">
-                        {[
-                            ["Home", "/"],
-                            ["Motorcycles", "/motorcycles"],
-                            ["AI Advisor", "/ai-advisor"],
-                            ["AI Plan", "/ai-plan"],
-                            ["Compare", "/compare"],
-                            ["Contact", "/contact"]
-                        ].map(([label, path], index) => (
-                            <button
-                                key={label}
-                                onClick={() => go(path)}
-                                className={
-                                    index === 0
-                                        ? "text-orange-500 font-medium"
-                                        : "text-gray-400 hover:text-white transition"
-                                }
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* DESKTOP BUTTONS */}
-                    <div className="hidden md:flex gap-3 items-center">
-                        <ThemeToggle />
-                        {(currentUser?.role === "user" ||
-                            currentUser?.role === "customer") &&
-                            (planBadge?.plan === "premium" ? (
-                                <button
-                                    onClick={() => go("/ai-plan")}
-                                    title="MOTOAI Premium active"
-                                    className="flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-400 transition hover:bg-orange-500/20"
-                                >
-                                    <span aria-hidden="true">👑</span>
-                                    Premium{" "}
-                                    {planBadge.planType === "yearly"
-                                        ? "Yearly"
-                                        : "Monthly"}
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => go("/ai-plan")}
-                                    title="Free plan — view AI plans"
-                                    className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-400 transition hover:text-white"
-                                >
-                                    Free Plan
-                                </button>
-                            ))}
-                        {currentUser?.role === "admin" && (
-                            <button
-                                onClick={() => go("/admin")}
-                                title="Open admin panel"
-                                className="flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-400 transition hover:bg-orange-500/20"
-                            >
-                                Admin Panel
-                            </button>
-                        )}
-                        {currentUser ? (
-                            <div className="relative">
-                                <button
-                                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                                    className="flex items-center gap-3 rounded-xl border border-gray-700 hover:border-orange-500 pl-1.5 pr-3 py-1.5 transition"
-                                >
-                                    <UserAvatar user={currentUser} size={32} />
-                                    <span className="text-left">
-                                        <span className="block text-sm font-semibold max-w-[140px] truncate">
-                                            {currentUser.name}
-                                        </span>
-                                        <span className="block text-xs text-orange-500 capitalize">
-                                            {currentUser.role}
-                                        </span>
-                                    </span>
-                                </button>
-
-                                {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-52 rounded-xl border border-gray-800 bg-[#111] shadow-2xl overflow-hidden">
-                                        <div className="px-4 py-3 border-b border-gray-800">
-                                            <p className="text-sm font-semibold truncate">{currentUser.name}</p>
-                                            <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => { setUserMenuOpen(false); go(dashboardPath); }}
-                                            className="block w-full text-left px-4 py-3 text-sm hover:bg-orange-500/10 hover:text-orange-500 transition"
-                                        >
-                                            My Dashboard
-                                        </button>
-                                        <button
-                                            onClick={() => { setUserMenuOpen(false); go("/motorcycles"); }}
-                                            className="block w-full text-left px-4 py-3 text-sm hover:bg-orange-500/10 hover:text-orange-500 transition"
-                                        >
-                                            Browse Bikes
-                                        </button>
-                                        <button
-                                            onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition"
-                                        >
-                                            Logout
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <>
-                                <Button onClick={() => go("/login")}>
-                                    <span className="flex items-center gap-2">
-                                        <FaUser />
-                                        Login
-                                    </span>
-                                </Button>
-
-                                <Button
-                                    primary
-                                    onClick={() => go("/register")}
-                                >
-                                    Get Started
-                                </Button>
-                            </>
-                        )}
-                    </div>
-
-                    {/* MOBILE MENU BUTTON */}
-                    <div className="md:hidden flex items-center gap-2">
-                        <ThemeToggle />
-                        <button
-                            className="text-xl"
-                            aria-label={menuOpen ? "Close menu" : "Open menu"}
-                            aria-expanded={menuOpen}
-                            onClick={() => setMenuOpen(!menuOpen)}
-                        >
-                            {menuOpen ? <FaTimes aria-hidden="true" /> : <FaBars aria-hidden="true" />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* MOBILE MENU */}
-                {menuOpen && (
-                    <div className="md:hidden bg-[#111] border-t border-gray-800 px-6 py-5 space-y-3">
-                        {currentUser && (
-                            <>
-                                <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-[#0d0d0d] p-3">
-                                    <UserAvatar user={currentUser} size={40} />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-semibold truncate">{currentUser.name}</p>
-                                        <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
-                                    </div>
-                                    <span className="text-xs text-orange-500 capitalize">{currentUser.role}</span>
-                                </div>
-                                <button
-                                    onClick={() => go("/ai-plan")}
-                                    className={`w-full rounded-xl px-4 py-2.5 text-left text-xs font-bold transition ${
-                                        currentUser.aiPlan === "premium"
-                                            ? "bg-orange-500/10 text-orange-400"
-                                            : "bg-white/5 text-zinc-400"
-                                    }`}
-                                >
-                                    {currentUser.aiPlan === "premium"
-                                        ? "👑 Premium Plan"
-                                        : "Free Plan — Upgrade"}
-                                </button>
-                            </>
-                        )}
-                        {[
-                            ["Home", "/"],
-                            ["Motorcycles", "/motorcycles"],
-                            ["AI Advisor", "/ai-advisor"],
-                            ["AI Plan", "/ai-plan"],
-                            ["Compare", "/compare"],
-                            ["Contact", "/contact"],
-                            ...(currentUser
-                                ? [["My Dashboard", dashboardPath]]
-                                : [["Login", "/login"], ["Get Started", "/register"]]),
-                        ].map(([label, path]) => (
-                            <button
-                                key={label}
-                                onClick={() => go(path)}
-                                className={`block w-full text-left py-3 ${label === "Get Started"
-                                        ? "bg-orange-500 text-black text-center rounded-xl font-bold"
-                                        : ""
-                                    }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                        {currentUser && (
-                            <button
-                                onClick={handleLogout}
-                                className="block w-full text-left py-3 text-red-400"
-                            >
-                                Logout
-                            </button>
-                        )}
-                    </div>
-                )}
-            </nav>
+            <Navbar position="fixed" showTokens={false} />
 
             <main id="main-content">
             {/* ================= HERO ================= */}
+            {isSectionOn("hero") && (
             <section className="pt-36 pb-24 px-6 relative overflow-hidden">
 
                 <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-500/10 blur-[120px] rounded-full" />
@@ -705,18 +465,24 @@ function Homepage() {
                         </div>
 
                         <h1 className="text-5xl md:text-7xl font-black leading-[1.05] mt-7">
-                            Find Your
-                            <br />
-                            <span className="text-orange-500">
-                                Perfect Ride.
-                            </span>
+                            {section("hero")?.content?.title ? (
+                                <>
+                                    {section("hero").content.title}
+                                </>
+                            ) : (
+                                <>
+                                    Find Your
+                                    <br />
+                                    <span className="text-orange-500">
+                                        Perfect Ride.
+                                    </span>
+                                </>
+                            )}
                         </h1>
 
                         <p className="text-gray-400 text-lg leading-relaxed max-w-xl mt-7">
-                            Tell MOTOAI your budget, riding style and
-                            requirements. Our intelligent recommendation
-                            system finds motorcycles that match your
-                            lifestyle.
+                            {section("hero")?.content?.subtitle ||
+                                "Tell MOTOAI your budget, riding style and requirements. Our intelligent recommendation system finds motorcycles that match your lifestyle."}
                         </p>
 
                         {/* ================= SEARCH ================= */}
@@ -942,21 +708,32 @@ function Homepage() {
 
                         {/* STATS */}
                         <div className="flex flex-wrap gap-12 mt-14">
-                            {[
-                                ["500+", "Motorcycles"],
-                                ["50K+", "Riders"],
-                                ["98%", "Satisfaction"]
-                            ].map(([value, label]) => (
-                                <div key={label}>
-                                    <h3 className="text-3xl font-bold">
-                                        {value}
-                                    </h3>
+                            {(() => {
+                                const stats = section("stats")?.content;
+                                const items = stats
+                                    ? [
+                                          [String(stats.totalMotorcycles ?? 0), "Motorcycles"],
+                                          [String(stats.totalBrands ?? 0), "Brands"],
+                                          [String(stats.activeDealerships ?? 0), "Dealerships"],
+                                          [String(stats.averageRating ?? 0), "Avg Rating"]
+                                      ]
+                                    : [
+                                          ["500+", "Motorcycles"],
+                                          ["50K+", "Riders"],
+                                          ["98%", "Satisfaction"]
+                                      ];
+                                return items.map(([value, label]) => (
+                                    <div key={label}>
+                                        <h3 className="text-3xl font-bold">
+                                            {value}
+                                        </h3>
 
-                                    <p className="text-gray-500 text-sm">
-                                        {label}
-                                    </p>
-                                </div>
-                            ))}
+                                        <p className="text-gray-500 text-sm">
+                                            {label}
+                                        </p>
+                                    </div>
+                                ));
+                            })()}
                         </div>
                     </div>
 
@@ -1003,13 +780,22 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ================= PROMOTIONS ================= */}
+            {isSectionOn("promotions") && (
             <div className="pt-10">
                 <AdvertisementSlider />
             </div>
+            )}
+
+            {/* ================= LATEST MOTORCYCLE UPDATES ================= */}
+            {isSectionOn("updates") && (
+                <LatestUpdatesSection />
+            )}
 
             {/* ================= RECOMMENDATIONS ================= */}
+            {isSectionOn("featuredMotorcycles") && (
             <section className="py-24 px-6 bg-[#0c0c0c]">
 
                 <div className="max-w-7xl mx-auto">
@@ -1075,8 +861,10 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ================= CATEGORIES ================= */}
+            {isSectionOn("categories") && (
             <section className="py-24 px-6">
 
                 <div className="max-w-7xl mx-auto">
@@ -1161,6 +949,7 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ================= AI ADVISOR ================= */}
             <section className="py-24 px-6 bg-[#0c0c0c]">

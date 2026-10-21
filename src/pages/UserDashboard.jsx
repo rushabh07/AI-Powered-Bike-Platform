@@ -29,10 +29,12 @@ import {
     MapPin,
     ExternalLink,
     Package,
+    Star,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import UserAvatar from "../components/UserAvatar";
+import MyReviewsSection from "../components/reviews/MyReviewsSection";
 import {
     ApiError,
     getUserDashboard,
@@ -80,6 +82,7 @@ const NAV = [
     { id: "comparisons", label: "Comparisons", icon: GitCompare },
     { id: "subscriptions", label: "My Subscriptions", icon: IndianRupee },
     { id: "orders", label: "My Orders", icon: Package },
+    { id: "reviews", label: "My Reviews", icon: Star },
     { id: "enquiries", label: "My Bike Enquiries", icon: ShoppingCart },
     { id: "test-rides", label: "My Test Rides", icon: Bike },
     { id: "notifications", label: "Notifications", icon: Bell },
@@ -2381,6 +2384,7 @@ export default function UserDashboard({ section = "dashboard" }) {
                     {section === "orders" && (
                         <OrdersSection navigate={navigate} />
                     )}
+                    {section === "reviews" && <MyReviewsSection />}
                     {section === "plan" && (
                         <PlanSection navigate={navigate} />
                     )}

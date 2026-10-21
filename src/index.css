@@ -217,4 +217,22 @@ html.light .bg-zinc-900 {
 /* Unavailable swatch diagonal line stays readable */
 html.light .bg-white\/60 {
   background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* =====================================================
+   REDUCED MOTION
+   Honour the OS "reduce motion" preference: collapse
+   transitions/animations so hover, menu and theme
+   changes stay instant for users who ask for it.
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

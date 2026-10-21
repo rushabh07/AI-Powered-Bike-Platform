@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Send, CheckCircle, AlertTriangle, Loader2, Copy } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import Navbar from "../components/Navbar";
 
 const API_BASE = "http://localhost:5000/api";
 
@@ -76,6 +77,7 @@ const ContactUs = () => {
 
     return (
         <div className={`min-h-screen ${theme === "light" ? "bg-[#eef0f3] text-zinc-900" : "bg-[#070707] text-white"}`}>
+            <Navbar activeTab="contact" />
             <main className="mx-auto max-w-2xl px-5 sm:px-8 py-12">
                 <p className="text-xs font-bold uppercase tracking-[0.25em] text-orange-500">Contact Us</p>
                 <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight">Let&apos;s Talk Motorcycles.</h1>

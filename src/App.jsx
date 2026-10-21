@@ -19,6 +19,8 @@ const UserDashboard = lazy(() => import("./pages/UserDashboard"));
 const ContactUs = lazy(() => import("./pages/ContactUs"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const OrderSuccess = lazy(() => import("./pages/OrderSuccess"));
+const LatestUpdates = lazy(() => import("./pages/LatestUpdates"));
+const UpdateDetail = lazy(() => import("./pages/UpdateDetail"));
 
 const RouteFallback = () => (
   <div className="min-h-screen bg-[#070707] text-white flex items-center justify-center">
@@ -47,6 +49,8 @@ function App() {
           <Route path="/ai-plan" element={<AIPlan />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/contact" element={<ContactUs />} />
+          <Route path="/updates" element={<LatestUpdates />} />
+          <Route path="/updates/:slug" element={<UpdateDetail />} />
           <Route path="/checkout/:id" element={
             <ProtectedRoute allowedRoles={["user", "customer", "provider", "admin"]}>
               <Checkout />
@@ -68,6 +72,7 @@ function App() {
             ["comparisons", "comparisons"],
             ["subscriptions", "subscriptions"],
             ["orders", "orders"],
+            ["reviews", "reviews"],
             ["enquiries", "enquiries"],
             ["test-rides", "test-rides"],
             ["notifications", "notifications"],

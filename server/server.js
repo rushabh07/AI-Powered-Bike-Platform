@@ -21,10 +21,47 @@ const variantRoutes = require("./routes/variantRoutes");
 const bikeEnquiryRoutes = require("./routes/bikeEnquiryRoutes");
 const dealershipRoutes = require("./routes/dealershipRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const updateRoutes = require("./routes/updateRoutes");
+const adminUpdateRoutes = require("./routes/adminUpdateRoutes");
+const homepageRoutes = require("./routes/homepageRoutes");
+const adminHomepageRoutes = require("./routes/adminHomepageRoutes");
 
 dotenv.config();
 
 const app = express();
+
+// ========================================
+// CORS
+// ========================================
+// In development the Vite dev server can land on any port
+// (5173, 5174, ...) if the preferred one is taken, so a single
+// hard-coded origin breaks every API call. Allow any loopback
+// origin in dev, and an explicit allow-list in production.
+//
+// Set CLIENT_ORIGIN (comma separated) to lock this down, e.g.
+//   CLIENT_ORIGIN=https://motoai.com,https://www.motoai.com
+const ALLOWED_ORIGINS = (process.env.CLIENT_ORIGIN || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+const isLoopbackOrigin = (origin) => {
+    try {
+        const { hostname } = new URL(origin);
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+    } catch {
+        return false;
+    }
+};
+
+const corsOrigin = (origin, callback) => {
+    // Same-origin / non-browser requests (curl, mobile app) send no Origin.
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.length > 0) {
+        return callback(null, ALLOWED_ORIGINS.includes(origin));
+    }
+    return callback(null, isLoopbackOrigin(origin));
+};
 
 // ========================================
 // Middleware
@@ -32,7 +69,7 @@ const app = express();
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: corsOrigin,
         credentials: true,
     })
 );
@@ -95,17 +132,26 @@ app.use("/api/dealerships", dealershipRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/contact", require("./routes/contactRoutes"));
 
+// Motorcycle updates (news/launches) — public + admin
+app.use("/api/updates", updateRoutes);
+app.use("/api/admin/updates", adminUpdateRoutes);
+
+// Homepage configuration — public + admin
+app.use("/api/homepage", homepageRoutes);
+app.use("/api/admin/homepage", adminHomepageRoutes);
+
 // Subscription / Premium routes
 app.use("/api/subscription", subscriptionRoutes);
 
-// Self-hosted 3D assets (same-origin: no CORS issues for model-viewer)
-app.use("/models", express.static(require("path").join(__dirname, "public", "models"), {
-    maxAge: "7d",
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith(".glb")) res.setHeader("Content-Type", "model/gltf-binary");
-    },
-}));
-
+// Self-hosted user assets (avatars) — served same-origin from the API
+// so the browser never makes third-party requests (no tracking notices).
+app.use(
+    "/uploads",
+    express.static(require("path").join(__dirname, "public", "uploads"), {
+        maxAge: "7d",
+        fallthrough: true,
+    })
+);
 
 // ========================================
 // 404 Handler

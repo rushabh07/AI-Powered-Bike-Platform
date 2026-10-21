@@ -495,6 +495,67 @@ export const recalculateAllRatings = () =>
     apiFetch("/reviews/admin/recalculate", { method: "POST" });
 
 // ==========================================
+// Motorcycle Updates API
+// ==========================================
+
+export const getPublicUpdates = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/updates${query ? `?${query}` : ""}`);
+};
+
+export const getPublicUpdateBySlug = (slug) => apiFetch(`/updates/${encodeURIComponent(slug)}`);
+
+export const getAdminUpdates = (params = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+    });
+    const query = qs.toString();
+    return apiFetch(`/admin/updates${query ? `?${query}` : ""}`);
+};
+
+export const getAdminUpdate = (id) => apiFetch(`/admin/updates/${id}`);
+
+export const createUpdate = (payload) =>
+    apiFetch("/admin/updates", { method: "POST", body: JSON.stringify(payload) });
+
+export const updateUpdate = (id, payload) =>
+    apiFetch(`/admin/updates/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+
+export const setUpdateStatus = (id, status) =>
+    apiFetch(`/admin/updates/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+
+export const deleteUpdate = (id) =>
+    apiFetch(`/admin/updates/${id}`, { method: "DELETE" });
+
+// ==========================================
+// Homepage CMS API
+// ==========================================
+
+export const getPublicHomepage = () => apiFetch("/homepage");
+
+export const getAdminHomepage = () => apiFetch("/admin/homepage");
+
+export const saveHomepageDraft = (sections) =>
+    apiFetch("/admin/homepage", {
+        method: "PUT",
+        body: JSON.stringify({ sections }),
+    });
+
+export const publishHomepage = () =>
+    apiFetch("/admin/homepage/publish", { method: "POST", body: JSON.stringify({}) });
+
+export const previewHomepage = () =>
+    apiFetch("/admin/homepage/preview", { method: "POST", body: JSON.stringify({}) });
+
+export const restoreHomepage = () =>
+    apiFetch("/admin/homepage/restore", { method: "POST", body: JSON.stringify({}) });
+
+// ==========================================
 // Motorcycle Orders (online + offline)
 // ==========================================
 

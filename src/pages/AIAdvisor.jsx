@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -26,9 +26,8 @@ import {
     Coins,
     Crown,
 } from "lucide-react";
-import Logo from "../components/Logo";
+import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
-import ThemeToggle from "../components/ThemeToggle";
 import UpgradeModal from "../components/UpgradeModal";
 
 const CHATS_API = "http://localhost:5000/api/chats";
@@ -1038,60 +1037,18 @@ export default function AIAdvisor() {
 
             <div className="flex min-w-0 flex-1 flex-col">
                 {/* NAVBAR */}
-                <nav className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#070708]/85 backdrop-blur-2xl">
-                    <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4 md:px-6">
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() =>
-                                    setSidebarOpen(true)
-                                }
-                                aria-label="Open chats"
-                                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-zinc-300 lg:hidden"
-                            >
-                                <Menu size={19} />
-                            </button>
-                            <Link to="/">
-                                <Logo />
-                            </Link>
-                        </div>
-
-                        <div className="hidden items-center gap-9 md:flex">
-                            <Link
-                                to="/"
-                                className="text-sm text-zinc-500 transition hover:text-white"
-                            >
-                                Home
-                            </Link>
-                            <Link
-                                to="/motorcycles"
-                                className="text-sm text-zinc-500 transition hover:text-white"
-                            >
-                                Motorcycles
-                            </Link>
-                            <span className="relative flex items-center gap-1.5 text-sm font-semibold text-white">
-                                <Sparkles size={14} />
-                                AI Advisor
-                                <span className="absolute -bottom-5 left-0 h-0.5 w-full rounded-full bg-orange-500" />
-                            </span>
-                            <Link
-                                to="/ai-plan"
-                                className="text-sm text-zinc-500 transition hover:text-white"
-                            >
-                                AI Plan
-                            </Link>
-                            <Link
-                                to="/compare"
-                                className="text-sm text-zinc-500 transition hover:text-white"
-                            >
-                                Compare
-                            </Link>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <ThemeToggle />
-                        </div>
-                    </div>
-                </nav>
+                <Navbar
+                    activeTab="ai-advisor"
+                    leading={(
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Open chats"
+                            className={`flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 transition-colors hover:border-orange-500/40 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/70 lg:hidden dark:border-white/10 dark:text-zinc-400 dark:hover:text-orange-400`}
+                        >
+                            <Menu size={19} aria-hidden="true" />
+                        </button>
+                    )}
+                />
 
                 {/* CHAT */}
                 <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-5 py-8 md:px-6">

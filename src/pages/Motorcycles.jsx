@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Logo from "../components/Logo";
-import UserAvatar from "../components/UserAvatar";
+import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import {
     Search,
@@ -36,43 +35,6 @@ export default function Motorcycles() {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    // Logged-in user (same source as Homepage navbar)
-    const [currentUser, setCurrentUser] = useState(null);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-    useEffect(() => {
-        const loadUser = () => {
-            try {
-                const token = localStorage.getItem("token");
-                const stored = localStorage.getItem("user");
-                if (token && stored) {
-                    setCurrentUser(JSON.parse(stored));
-                } else {
-                    setCurrentUser(null);
-                }
-            } catch {
-                setCurrentUser(null);
-            }
-        };
-        loadUser();
-        window.addEventListener("storage", loadUser);
-        return () => window.removeEventListener("storage", loadUser);
-    }, []);
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setCurrentUser(null);
-        setUserMenuOpen(false);
-        navigate("/login");
-    };
-
-    const dashboardPath =
-        currentUser?.role === "admin"
-            ? "/admin"
-            : currentUser?.role === "provider"
-              ? "/provider"
-              : "/user/dashboard";
 
     const [bikes, setBikes] = useState([]);
 
@@ -93,25 +55,6 @@ export default function Motorcycles() {
     const [showFilters, setShowFilters] = useState(false);
     const [wishlist, setWishlist] = useState([]);
 
-    // Plan badge (backend is the source of truth)
-    const [planBadge, setPlanBadge] = useState(null);
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            setPlanBadge(null);
-            return;
-        }
-        fetch("http://localhost:5000/api/subscription/status", {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data) => {
-                if (data && data.success) setPlanBadge(data);
-            })
-            .catch(() => {
-                /* badge stays hidden */
-            });
-    }, [currentUser]);
 
     // All motorcycles (unfiltered) — used ONLY to derive the
     // dynamic brand filter options (unique brand + first logo).
@@ -278,150 +221,7 @@ export default function Motorcycles() {
             {/* =====================================
                 NAVBAR
             ===================================== */}
-            <nav className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#070708]/85 backdrop-blur-2xl">
-
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-6">
-
-                    {/* LOGO */}
-                    <Link to="/">
-                        <Logo />
-                    </Link>
-
-                    {/* DESKTOP NAV */}
-                    <div className="hidden items-center gap-9 md:flex">
-
-                        <Link
-                            to="/"
-                            className="text-sm text-zinc-500 transition hover:text-white"
-                        >
-                            Home
-                        </Link>
-
-                        <span className="relative text-sm font-semibold text-white">
-                            Motorcycles
-
-                            <span className="absolute -bottom-5 left-0 h-0.5 w-full rounded-full bg-orange-500" />
-                        </span>
-
-                        <Link
-                            to="/ai-advisor"
-                            className="flex items-center gap-1.5 text-sm text-zinc-500 transition hover:text-white"
-                        >
-                            <Sparkles size={14} />
-                            AI Advisor
-                        </Link>
-
-                        <Link
-                            to="/ai-plan"
-                            className="text-sm text-zinc-500 transition hover:text-white"
-                        >
-                            AI Plan
-                        </Link>
-
-                        <Link
-                            to="/compare"
-                            className="text-sm text-zinc-500 transition hover:text-white"
-                        >
-                            Compare
-                        </Link>
-                    </div>
-
-                    {/* ACTIONS */}
-                    <div className="flex items-center gap-2">
-                        {currentUser &&
-                            (planBadge?.plan === "premium" ? (
-                                <Link
-                                    to="/ai-plan"
-                                    title="MOTOAI Premium active"
-                                    className="hidden items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-400 transition hover:bg-orange-500/20 sm:flex"
-                                >
-                                    <span aria-hidden="true">👑</span>
-                                    Premium{" "}
-                                    {planBadge.planType === "yearly"
-                                        ? "Yearly"
-                                        : "Monthly"}{" "}
-                                    • {planBadge.tokens} Tokens
-                                </Link>
-                            ) : (
-                                <Link
-                                    to="/ai-plan"
-                                    title="Free plan — view AI plans"
-                                    className="hidden rounded-full bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-400 transition hover:text-white sm:block"
-                                >
-                                    Free •{" "}
-                                    {planBadge?.tokens ?? "—"} Tokens
-                                </Link>
-                            ))}
-                        {currentUser ? (
-                            <div className="relative">
-                                <button
-                                    onClick={() =>
-                                        setUserMenuOpen(!userMenuOpen)
-                                    }
-                                    className="flex items-center gap-2.5 rounded-xl border border-white/10 py-1.5 pl-1.5 pr-3 transition hover:border-orange-500/40"
-                                >
-                                    <UserAvatar
-                                        user={currentUser}
-                                        size={32}
-                                    />
-                                    <span className="hidden text-left sm:block">
-                                        <span className="block max-w-[120px] truncate text-sm font-semibold">
-                                            {currentUser.name}
-                                        </span>
-                                        <span className="block text-xs capitalize text-orange-500">
-                                            {currentUser.role}
-                                        </span>
-                                    </span>
-                                </button>
-
-                                {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-white/10 bg-[#111113] shadow-2xl">
-                                        <div className="border-b border-white/10 px-4 py-3">
-                                            <p className="truncate text-sm font-semibold">
-                                                {currentUser.name}
-                                            </p>
-                                            <p className="truncate text-xs text-zinc-500">
-                                                {currentUser.email}
-                                            </p>
-                                        </div>
-                                        <Link
-                                            to={dashboardPath}
-                                            onClick={() =>
-                                                setUserMenuOpen(false)
-                                            }
-                                            className="block px-4 py-3 text-left text-sm transition hover:bg-orange-500/10 hover:text-orange-400"
-                                        >
-                                            My Dashboard
-                                        </Link>
-                                        <button
-                                            onClick={handleLogout}
-                                            className="block w-full px-4 py-3 text-left text-sm text-red-400 transition hover:bg-red-500/10"
-                                        >
-                                            Logout
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <>
-                                <Link
-                                    to="/login"
-                                    className="hidden rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-white sm:block"
-                                >
-                                    Login
-                                </Link>
-
-                                <Link
-                                    to="/register"
-                                    className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-black shadow-lg shadow-orange-500/10 transition hover:bg-orange-400 hover:shadow-orange-500/20"
-                                >
-                                    Get Started
-                                </Link>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </nav>
+            <Navbar activeTab="motorcycles" />
 
             {/* =====================================
                 PREMIUM HEADER

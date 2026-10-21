@@ -72,6 +72,8 @@ router.get("/motorcycle/:motorcycleId", optionalAuth, getMotorcycleReviews);
 router.get("/motorcycle/:motorcycleId/grouped", getReviewsGrouped);
 router.get("/motorcycle/:motorcycleId/summary", getMotorcycleReviewSummary);
 router.get("/motorcycle/:motorcycleId/eligibility", protect, getReviewEligibility);
+// Spec-shaped alias: GET /api/reviews/eligibility/:motorcycleId
+router.get("/eligibility/:motorcycleId", protect, getReviewEligibility);
 router.get("/summaries", getBulkReviewSummaries);
 router.get("/my", protect, getMyReviews);
 router.post("/", protect, reviewWriteLimit, createReview);

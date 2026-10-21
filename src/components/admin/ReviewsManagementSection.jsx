@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Search, Star, Trash2, RefreshCw, BadgeCheck } from "lucide-react";
-import { getAdminReviews, moderateReview, deleteReview, recalculateAllRatings } from "../../services/api";
+import { Search, Star, Trash2, RefreshCw, BadgeCheck, Calendar } from "lucide-react";
+import { getAdminReviews, moderateReview, deleteReview, recalculateAllRatings, getAllMotorcycles } from "../../services/api";
 
 const statusBadge = (s) => {
     const base = "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border";
@@ -20,9 +20,14 @@ export const ReviewsManagementSection = () => {
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("");
     const [rating, setRating] = useState("");
+    const [motorcycle, setMotorcycle] = useState("");
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
+    const [bikes, setBikes] = useState([]);
     const [page, setPage] = useState(1);
     const [pages, setPages] = useState(1);
     const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
+    const [stats, setStats] = useState({ averageRating: 0, totalReviews: 0, verifiedReviews: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } });
     const [acting, setActing] = useState({});
     const [recalcBusy, setRecalcBusy] = useState(false);
 
@@ -34,12 +39,16 @@ export const ReviewsManagementSection = () => {
                 search: search.trim() || undefined,
                 status: status || undefined,
                 rating: rating || undefined,
+                motorcycle: motorcycle || undefined,
+                from: fromDate || undefined,
+                to: toDate || undefined,
                 page: pageValue,
                 limit: 15,
             });
             setReviews(data.reviews || []);
             setPages(data.pages || 1);
             setCounts(data.statusCounts || { pending: 0, approved: 0, rejected: 0 });
+            setStats(data.ratingStats || { averageRating: 0, totalReviews: 0, verifiedReviews: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } });
         } catch (err) {
             setError(err.message || "Unable to load reviews.");
         } finally {
@@ -47,11 +56,26 @@ export const ReviewsManagementSection = () => {
         }
     };
 
+    // Motorcycles for the filter dropdown.
+    useEffect(() => {
+        let cancelled = false;
+        getAllMotorcycles()
+            .then((list) => {
+                if (!cancelled) setBikes(list || []);
+            })
+            .catch(() => {
+                /* filter dropdown stays empty — other filters still work */
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on filter change
         load(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, rating]);
+    }, [status, rating, motorcycle, fromDate, toDate]);
 
     const handleModerate = async (id, nextStatus) => {
         setActing((p) => ({ ...p, [id]: true }));
@@ -112,6 +136,19 @@ export const ReviewsManagementSection = () => {
                     </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <select
+                        value={motorcycle}
+                        onChange={(e) => { setMotorcycle(e.target.value); setPage(1); }}
+                        className="max-w-[220px] rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none focus:border-orange-500/50"
+                        aria-label="Filter by motorcycle"
+                    >
+                        <option value="">All motorcycles</option>
+                        {bikes.map((b) => (
+                            <option key={b._id} value={b._id}>
+                                {b.brand} {b.name}
+                            </option>
+                        ))}
+                    </select>
                     <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none focus:border-orange-500/50" aria-label="Filter by status">
                         <option value="">All statuses</option>
                         <option value="pending">Pending</option>
@@ -124,6 +161,24 @@ export const ReviewsManagementSection = () => {
                             <option key={s} value={s}>{s} stars</option>
                         ))}
                     </select>
+                    <div className="flex items-center gap-1.5">
+                        <Calendar size={14} className="text-zinc-500" aria-hidden="true" />
+                        <input
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                            aria-label="Reviews from date"
+                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-orange-500/50 [color-scheme:dark]"
+                        />
+                        <span className="text-zinc-600">→</span>
+                        <input
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                            aria-label="Reviews to date"
+                            className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-orange-500/50 [color-scheme:dark]"
+                        />
+                    </div>
                     <div className="relative">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                         <input
@@ -137,6 +192,34 @@ export const ReviewsManagementSection = () => {
                     <button onClick={() => { setPage(1); load(1); }} className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400">
                         Search
                     </button>
+                </div>
+            </div>
+
+            {/* Rating statistics across approved reviews */}
+            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-white/10 bg-[#0c0c0c] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Average rating</p>
+                    <p className="mt-1 text-2xl font-black text-orange-400">
+                        {Number(stats.averageRating || 0).toFixed(1)}
+                        <span className="text-sm text-zinc-500">/5</span>
+                    </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-[#0c0c0c] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Approved reviews</p>
+                    <p className="mt-1 text-2xl font-black text-white">{stats.totalReviews || 0}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-[#0c0c0c] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Verified purchases</p>
+                    <p className="mt-1 text-2xl font-black text-emerald-400">{stats.verifiedReviews || 0}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-[#0c0c0c] px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Star spread</p>
+                    <p className="mt-1 text-xs font-semibold text-zinc-300">
+                        {[5, 4, 3, 2, 1]
+                            .filter((s) => (stats.distribution?.[s] || 0) > 0)
+                            .map((s) => `${s}★:${stats.distribution[s]}`)
+                            .join("  ") || "—"}
+                    </p>
                 </div>
             </div>
 

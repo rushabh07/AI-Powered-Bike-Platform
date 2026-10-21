@@ -49,7 +49,7 @@ export const RatingSummary = ({ summary, loading = false, onSelectStar, activeSt
                 </p>
                 <Stars value={avg} size={17} className="mt-3 justify-center" />
                 <p className="mt-2 text-sm text-zinc-400">
-                    Based on {total} verified review{total === 1 ? "" : "s"}
+                    Based on {total} review{total === 1 ? "" : "s"}
                 </p>
             </div>
 

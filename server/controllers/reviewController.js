@@ -110,14 +110,85 @@ const findQualifyingPurchase = async (userId, motorcycleId) => {
 };
 
 // ============================================
+// PENDING purchase detection.
+// Finds a purchase record for this exact motorcycle that exists but
+// has NOT yet completed the offline/online fulfilment flow, so the UI
+// can say "your review unlocks once the purchase is completed" instead
+// of the generic "purchase this motorcycle" message.
+//
+// A cancelled order is NOT pending — it is simply not a purchase.
+// ============================================
+const findPendingPurchase = async (userId, motorcycleId) => {
+    if (!Order) return null;
+
+    const order = await Order.findOne({
+        user: userId,
+        motorcycle: motorcycleId,
+        orderStatus: { $nin: ["completed", "cancelled"] },
+    })
+        .select("_id orderNumber orderStatus paymentStatus paymentMethod deliveryMethod visitDate")
+        .sort({ updatedAt: -1 })
+        .lean();
+
+    if (order) {
+        return {
+            kind: "order",
+            orderNumber: order.orderNumber,
+            orderStatus: order.orderStatus,
+            paymentStatus: order.paymentStatus,
+            paymentMethod: order.paymentMethod,
+            deliveryMethod: order.deliveryMethod,
+        };
+    }
+
+    // Legacy purchase enquiry that has not been completed yet.
+    const enquiry = await BikeEnquiry.findOne({
+        user: userId,
+        motorcycle: motorcycleId,
+        enquiryType: "purchase",
+        status: { $ne: "completed" },
+    })
+        .select("_id enquiryId status")
+        .sort({ updatedAt: -1 })
+        .lean();
+
+    if (enquiry) {
+        return {
+            kind: "enquiry",
+            orderNumber: enquiry.enquiryId,
+            orderStatus: enquiry.status,
+            paymentStatus: "pending",
+            paymentMethod: "offline",
+            deliveryMethod: "",
+        };
+    }
+
+    return null;
+};
+
+// Human-readable explanation of why a review is (or is not) unlocked.
+const purchaseMessage = (state, pending) => {
+    if (state === "completed") return "";
+    if (state === "pending" && pending) {
+        const status = String(pending.orderStatus || "").replace(/_/g, " ");
+        if (pending.paymentStatus === "paid") {
+            return `Your payment for this motorcycle is verified. The review unlocks once the dealership marks the bike as collected (currently: ${status}).`;
+        }
+        return `Your purchase request for this motorcycle is still being processed (${status}). The review unlocks once the payment is verified and the bike is collected.`;
+    }
+    return "Purchase this motorcycle to share your experience.";
+};
+
+// ============================================
 // Review shaping (single-bike scoped, safe for public)
 // ============================================
 const shapeReview = (r, currentUserId = null) => {
     const helpfulBy = Array.isArray(r.helpfulBy) ? r.helpfulBy.map(String) : [];
     return {
         _id: r._id,
-        title: r.title,
-        category: r.category,
+        // Fallbacks keep partial / legacy records renderable instead of blank.
+        title: (r.title && String(r.title).trim()) || "Customer review",
+        category: CATEGORIES.includes(r.category) ? r.category : "performance",
         rating: r.rating,
         comment: r.comment,
         isExpert: !!r.isExpert,
@@ -453,10 +524,14 @@ const createReview = async (req, res) => {
         if (req.user.role !== "admin") {
             purchase = await findQualifyingPurchase(req.user._id, motorcycleId);
             if (!purchase) {
+                const pending = await findPendingPurchase(req.user._id, motorcycleId);
+                const state = pending ? "pending" : "none";
                 return res.status(403).json({
                     success: false,
                     code: "PURCHASE_REQUIRED",
-                    message: "You can only review motorcycles you have purchased. Purchase this motorcycle to share your review.",
+                    message: purchaseMessage(state, pending),
+                    purchaseState: state,
+                    pendingPurchase: pending,
                 });
             }
             verified = true;
@@ -481,6 +556,7 @@ const createReview = async (req, res) => {
         const populated = await Review.findById(review._id)
             .populate({ path: "user", select: "name email profileImage" })
             .populate({ path: "motorcycle", select: "name brand image images" })
+            .populate({ path: "order", select: "orderNumber orderStatus paymentStatus deliveryMethod" })
             .lean();
 
         const summary = await syncMotorcycleRating(motorcycleId);
@@ -488,7 +564,8 @@ const createReview = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: "Review submitted.",
-            review: shapeReview(populated, req.user._id),
+            // Owner-scoped shape: includes the qualifying order reference.
+            review: shapeMyReview(populated),
             summary,
         });
     } catch (error) {
@@ -554,6 +631,7 @@ const updateReview = async (req, res) => {
         const populated = await Review.findById(review._id)
             .populate({ path: "user", select: "name email profileImage" })
             .populate({ path: "motorcycle", select: "name brand image images" })
+            .populate({ path: "order", select: "orderNumber orderStatus paymentStatus deliveryMethod" })
             .lean();
 
         const summary = await syncMotorcycleRating(review.motorcycle);
@@ -561,7 +639,7 @@ const updateReview = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Review updated.",
-            review: shapeReview(populated, req.user._id),
+            review: shapeMyReview(populated),
             summary,
         });
     } catch (error) {
@@ -636,17 +714,37 @@ const toggleHelpful = async (req, res) => {
     }
 };
 
+// ============================================
+// My Reviews (owner view).
+// Includes the qualifying order reference so the customer can see WHY
+// their review is verified. Order numbers are never exposed on the
+// public review endpoints — only on the authenticated owner view.
+// ============================================
+const shapeMyReview = (r) => ({
+    ...shapeReview(r, r.user ? r.user._id : null),
+    order: r.order
+        ? {
+              _id: r.order._id,
+              orderNumber: r.order.orderNumber,
+              orderStatus: r.order.orderStatus,
+              paymentStatus: r.order.paymentStatus,
+              deliveryMethod: r.order.deliveryMethod,
+          }
+        : null,
+});
+
 const getMyReviews = async (req, res) => {
     try {
         const reviews = await Review.find({ user: req.user._id })
             .populate({ path: "user", select: "name email profileImage" })
             .populate({ path: "motorcycle", select: "name brand image images" })
+            .populate({ path: "order", select: "orderNumber orderStatus paymentStatus deliveryMethod" })
             .sort({ createdAt: -1 })
             .lean();
 
         return res.status(200).json({
             success: true,
-            reviews: reviews.map((r) => shapeReview(r, req.user._id)),
+            reviews: reviews.map((r) => shapeMyReview(r)),
         });
     } catch (error) {
         console.error("Get my reviews error:", error.message);
@@ -687,18 +785,41 @@ const getReviewEligibility = async (req, res) => {
         if (!isValidId(motorcycleId)) {
             return res.status(400).json({ success: false, message: "Invalid motorcycle ID." });
         }
-        const [purchase, existing] = await Promise.all([
-            req.user.role === "admin"
-                ? Promise.resolve({ orderId: null, enquiryId: null })
-                : findQualifyingPurchase(req.user._id, motorcycleId),
-            Review.findOne({ user: req.user._id, motorcycle: motorcycleId }).select("_id").lean(),
+        const isAdmin = req.user.role === "admin";
+        const [purchase, pending, existing] = await Promise.all([
+            isAdmin ? Promise.resolve(null) : findQualifyingPurchase(req.user._id, motorcycleId),
+            isAdmin ? Promise.resolve(null) : findPendingPurchase(req.user._id, motorcycleId),
+            Review.findOne({ user: req.user._id, motorcycle: motorcycleId })
+                .populate({ path: "motorcycle", select: "name brand image images" })
+                .lean(),
         ]);
+
+        const purchaseState = isAdmin
+            ? "none"
+            : purchase
+            ? "completed"
+            : pending
+            ? "pending"
+            : "none";
+
         return res.status(200).json({
             success: true,
-            eligible: req.user.role === "admin" || !!purchase,
-            verified: req.user.role === "admin" ? false : !!purchase,
+            eligible: isAdmin || !!purchase,
+            verified: isAdmin ? false : !!purchase,
             hasReviewed: !!existing,
             reviewId: existing ? existing._id : null,
+            reviewStatus: existing ? existing.status : null,
+            // The customer's OWN review (safe to return — owner only) so the
+            // UI can offer "Edit your review" even when it is not on page 1.
+            review: existing ? shapeReview(existing, req.user._id) : null,
+            // "none" | "pending" | "completed"
+            purchaseState,
+            pendingPurchase: pending,
+            reason: isAdmin
+                ? ""
+                : purchase
+                ? ""
+                : purchaseMessage(purchaseState, pending),
         });
     } catch (error) {
         console.error("Get eligibility error:", error.message);
@@ -708,12 +829,12 @@ const getReviewEligibility = async (req, res) => {
 
 // ============================================
 // ADMIN: list reviews with filters
-// GET /api/reviews/admin/all?motorcycle=&user=&rating=&status=&search=&page=&limit=
+// GET /api/reviews/admin/all?motorcycle=&user=&rating=&status=&search=&from=&to=&page=&limit=
 // Moderation actions are status-only — rating/text are never altered.
 // ============================================
 const adminListReviews = async (req, res) => {
     try {
-        const { motorcycle = "", user = "", rating = "", status = "", search = "" } = req.query;
+        const { motorcycle = "", user = "", rating = "", status = "", search = "", from = "", to = "" } = req.query;
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
         const skip = (page - 1) * limit;
@@ -727,8 +848,22 @@ const adminListReviews = async (req, res) => {
             const rx = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
             filter.$or = [{ title: rx }, { comment: rx }];
         }
+        // Date range filter (inclusive of the whole "to" day).
+        const dateFilter = {};
+        if (from) {
+            const d = new Date(from);
+            if (!isNaN(d.getTime())) dateFilter.$gte = d;
+        }
+        if (to) {
+            const d = new Date(to);
+            if (!isNaN(d.getTime())) {
+                d.setHours(23, 59, 59, 999);
+                dateFilter.$lte = d;
+            }
+        }
+        if (Object.keys(dateFilter).length) filter.createdAt = dateFilter;
 
-        const [reviews, total, counts] = await Promise.all([
+        const [reviews, total, counts, stats] = await Promise.all([
             Review.find(filter)
                 .populate({ path: "user", select: "name email profileImage" })
                 .populate({ path: "motorcycle", select: "name brand image" })
@@ -740,12 +875,44 @@ const adminListReviews = async (req, res) => {
             Review.aggregate([
                 { $group: { _id: "$status", count: { $sum: 1 } } },
             ]),
+            // Genuine rating statistics across approved reviews.
+            Review.aggregate([
+                { $match: { status: "approved" } },
+                {
+                    $group: {
+                        _id: null,
+                        average: { $avg: "$rating" },
+                        count: { $sum: 1 },
+                        verified: { $sum: { $cond: ["$verifiedPurchase", 1, 0] } },
+                        distribution: {
+                            $push: "$rating",
+                        },
+                    },
+                },
+            ]),
         ]);
 
         const statusCounts = { pending: 0, approved: 0, rejected: 0 };
         for (const row of counts) {
             if (statusCounts[row._id] !== undefined) statusCounts[row._id] = row.count;
         }
+
+        const statRow = stats[0];
+        const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        if (statRow && Array.isArray(statRow.distribution)) {
+            statRow.distribution.forEach((r) => {
+                const star = Number(r);
+                if (star >= 1 && star <= 5) distribution[star] += 1;
+            });
+        }
+        const ratingStats = statRow
+            ? {
+                  averageRating: Math.round(statRow.average * 10) / 10,
+                  totalReviews: statRow.count,
+                  verifiedReviews: statRow.verified,
+                  distribution,
+              }
+            : { averageRating: 0, totalReviews: 0, verifiedReviews: 0, distribution };
 
         return res.status(200).json({
             success: true,
@@ -754,6 +921,7 @@ const adminListReviews = async (req, res) => {
             page,
             pages: Math.max(1, Math.ceil(total / limit)),
             statusCounts,
+            ratingStats,
             reviews: reviews.map((r) => shapeReview(r)),
         });
     } catch (error) {

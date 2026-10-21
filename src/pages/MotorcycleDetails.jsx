@@ -4,7 +4,6 @@ import BrandLogo from "../components/BrandLogo";
 import { getMotorcycleVariants } from "../services/api";
 import ReviewsSection from "../components/reviews/ReviewsSection";
 import BuyPurchaseModal from "../components/BuyPurchaseModal";
-import Motorcycle3DViewer from "../components/Motorcycle3DViewer";
 import {
     ArrowLeft,
     Bike,
@@ -25,8 +24,6 @@ import {
     Search,
     ShoppingCart,
     Check,
-    Box,
-    Images,
     Store,
 } from "lucide-react";
 
@@ -57,12 +54,7 @@ const MotorcycleDetails = () => {
 
     const [selectedColor, setSelectedColor] = useState(null);
     const [showBuyModal, setShowBuyModal] = useState(false);
-    const [viewMode, setViewMode] = useState("photos");
 
-    const activeModelUrl =
-        (selectedColor?.model3DUrl || "").trim() ||
-        (bike?.model3DUrl || "").trim() ||
-        "";
     const bikeColors = (bike?.colors || []).filter((c) => c.available !== false);
     const activeColorImage = selectedColor?.image || null;
     const isLoggedIn = () => {
@@ -115,7 +107,6 @@ const MotorcycleDetails = () => {
                 setBike(data.motorcycle);
                 setLiveSummary(data.reviewSummary || null);
                 setActiveImage(0);
-                setViewMode("photos");
             } catch (error) {
                 console.error("Motorcycle details error:", error);
                 setError(error.message || "Something went wrong");
@@ -141,13 +132,6 @@ const MotorcycleDetails = () => {
             })
             .catch(() => {});
     }, [bike?._id]);
-
-    // Fall back to photos if the selected color/bike has no 3D model
-    useEffect(() => {
-        if (viewMode === "3d" && !activeModelUrl) {
-            setViewMode("photos");
-        }
-    }, [activeModelUrl, viewMode]);
 
     // Default to the first available color
     useEffect(() => {
@@ -310,44 +294,6 @@ const MotorcycleDetails = () => {
                     ================================================= */}
                     <div>
 
-                        {/* VIEW TABS */}
-                        <div className="mb-4 flex items-center gap-2">
-                            <button
-                                onClick={() => setViewMode("photos")}
-                                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-                                    viewMode === "photos"
-                                        ? "bg-orange-500 text-black"
-                                        : "border border-white/10 text-zinc-400 hover:border-orange-500/40 hover:text-orange-400"
-                                }`}
-                            >
-                                <Images size={15} />
-                                Image Gallery
-                            </button>
-                            {activeModelUrl && (
-                                <button
-                                    onClick={() => setViewMode("3d")}
-                                    className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-                                        viewMode === "3d"
-                                            ? "bg-orange-500 text-black"
-                                            : "border border-white/10 text-zinc-400 hover:border-orange-500/40 hover:text-orange-400"
-                                    }`}
-                                >
-                                    <Box size={15} />
-                                    View 3D
-                                </button>
-                            )}
-                        </div>
-
-                        {viewMode === "3d" && activeModelUrl ? (
-                            <div className="relative border border-white/10 rounded-3xl overflow-hidden">
-                                <Motorcycle3DViewer
-                                    modelUrl={activeModelUrl}
-                                    poster={activeColorImage || currentImage?.url || ""}
-                                    name={`${bike.brand} ${bike.name}`}
-                                />
-                            </div>
-                        ) : (
-                        <>
                         {/* MAIN IMAGE */}
                         <div className="relative bg-[#111] border border-white/10 rounded-3xl overflow-hidden group">
 
@@ -544,8 +490,6 @@ const MotorcycleDetails = () => {
                                     })}
                                 </div>
                             </div>
-                        )}
-                        </>
                         )}
 
                     </div>
