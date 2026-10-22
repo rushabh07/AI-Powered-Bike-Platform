@@ -25,6 +25,9 @@ const updateRoutes = require("./routes/updateRoutes");
 const adminUpdateRoutes = require("./routes/adminUpdateRoutes");
 const homepageRoutes = require("./routes/homepageRoutes");
 const adminHomepageRoutes = require("./routes/adminHomepageRoutes");
+const roleRoutes = require("./routes/roleRoutes");
+const adminRoleRoutes = require("./routes/adminRoleRoutes");
+const { ensureRoleConfigs } = require("./services/roleConfigService");
 
 dotenv.config();
 
@@ -143,6 +146,10 @@ app.use("/api/admin/homepage", adminHomepageRoutes);
 // Subscription / Premium routes
 app.use("/api/subscription", subscriptionRoutes);
 
+// Role & permission management
+app.use("/api/roles", roleRoutes);
+app.use("/api/admin/roles", adminRoleRoutes);
+
 // Self-hosted user assets (avatars) — served same-origin from the API
 // so the browser never makes third-party requests (no tracking notices).
 app.use(
@@ -184,8 +191,12 @@ app.use((err, req, res, next) => {
 
 mongoose
     .connect(process.env.MONGO_URI)
-    .then(() => {
+    .then(async () => {
         console.log("MongoDB connected successfully");
+
+        // Seed the default role configuration. Missing configs fall back
+        // to safe defaults, so a seeding failure never locks anyone out.
+        await ensureRoleConfigs();
 
         const PORT = process.env.PORT || 5000;
 

@@ -276,9 +276,13 @@ const Register = () => {
                                 className="w-full bg-black border border-zinc-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:border-orange-500 transition"
                             >
                                 <option value="user">User / Customer</option>
-                                <option value="admin">Admin</option>
                                 <option value="provider">Provider</option>
                             </select>
+
+                            <p className="mt-2 text-xs text-gray-500">
+                                Administrator accounts are created by the platform team, not
+                                through public registration.
+                            </p>
                         </div>
 
                         {/* Password */}

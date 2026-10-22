@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import UpgradeModal from "../components/UpgradeModal";
+import { useRole } from "../context/RoleContext";
 import { getSubscriptionPlans, getSubscriptionStatus, getSubscriptionHistory } from "../services/api";
 
 const FREE_FEATURES = [
@@ -35,6 +36,7 @@ const inr = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 export default function AIPlan() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { can, loading: roleLoading, displayName: roleName } = useRole();
 
     const [config, setConfig] = useState(null);
     const [subStatus, setSubStatus] = useState(null);
@@ -148,6 +150,44 @@ export default function AIPlan() {
                   year: "numeric",
               })
             : "—";
+
+    // Permission gate: when the admin has not granted "ai.advisor" to
+    // this role, the AI plan store is hidden — purchasing tokens is
+    // rejected server-side as well.
+    const authedLocally = (() => {
+        try {
+            return !!(localStorage.getItem("token") && localStorage.getItem("user"));
+        } catch {
+            return false;
+        }
+    })();
+
+    if (authedLocally && !roleLoading && !can("ai.advisor")) {
+        return (
+            <div className="min-h-screen bg-[#070708] text-white flex items-center justify-center px-6">
+                <div className="max-w-md w-full text-center rounded-3xl border border-orange-500/20 bg-[#0b0b0b] p-10">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                        <Zap size={26} className="text-orange-500" />
+                    </div>
+                    <h1 className="text-2xl font-black mt-6">
+                        MOTOAI Plan is unavailable
+                    </h1>
+                    <p className="text-sm text-zinc-500 mt-3 leading-relaxed">
+                        Your role{roleName ? ` (${roleName})` : ""} does not
+                        have permission to use MotoMind AI, so AI plans are
+                        not available to this account. Contact your platform
+                        administrator if you believe this is a mistake.
+                    </p>
+                    <button
+                        onClick={() => navigate("/")}
+                        className="mt-8 px-6 py-3 rounded-xl bg-white text-black font-semibold hover:bg-orange-500 transition"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#070708] text-white">

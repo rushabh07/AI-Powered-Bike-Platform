@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
+const { isRoleEnabled } = require("../services/roleConfigService");
 
 const router = express.Router();
 
@@ -38,11 +39,27 @@ router.post("/register", async (req, res) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Validate role (whitelist to avoid invalid roles)
-        const allowedRoles = ["user", "customer", "provider", "admin"];
+        // Role assignment is CONTROLLED SERVER-SIDE.
+        // A public registration may only create a customer ("user") or a
+        // provider account. "admin" is NEVER assignable by the client —
+        // otherwise anyone could self-register as an administrator.
+        const requestedRole = String(req.body.role || "").toLowerCase().trim();
         let role = "user";
-        if (req.body.role && allowedRoles.includes(req.body.role)) {
-            role = req.body.role;
+        if (requestedRole === "provider") {
+            role = "provider";
+        } else if (requestedRole === "customer" || requestedRole === "user") {
+            role = "user";
+        }
+
+        // A role disabled by an administrator cannot be registered for.
+        const roleEnabled = await isRoleEnabled(role);
+        if (!roleEnabled) {
+            return res.status(403).json({
+                success: false,
+                code: "ROLE_DISABLED",
+                message:
+                    "Registration for this account type is currently unavailable. Please contact support.",
+            });
         }
 
         // Create user (Free plan + token allowance via schema defaults)
@@ -125,6 +142,17 @@ router.post("/login", async (req, res) => {
         if (!passwordMatch) {
             return res.status(401).json({
                 message: "Invalid email or password.",
+            });
+        }
+
+        // A role disabled by an administrator cannot sign in.
+        const roleEnabled = await isRoleEnabled(user.role);
+        if (!roleEnabled) {
+            return res.status(403).json({
+                success: false,
+                code: "ROLE_DISABLED",
+                message:
+                    "This account type is currently unavailable. Please contact support.",
             });
         }
 

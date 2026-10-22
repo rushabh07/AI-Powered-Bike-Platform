@@ -16,6 +16,7 @@ const {
     adminRecalculateRatings,
 } = require("../controllers/reviewController");
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
@@ -76,14 +77,14 @@ router.get("/motorcycle/:motorcycleId/eligibility", protect, getReviewEligibilit
 router.get("/eligibility/:motorcycleId", protect, getReviewEligibility);
 router.get("/summaries", getBulkReviewSummaries);
 router.get("/my", protect, getMyReviews);
-router.post("/", protect, reviewWriteLimit, createReview);
+router.post("/", protect, reviewWriteLimit, requirePermission("reviews.write"), createReview);
 router.post("/:reviewId/helpful", protect, toggleHelpful);
-router.put("/:reviewId", protect, reviewWriteLimit, updateReview);
+router.put("/:reviewId", protect, reviewWriteLimit, requirePermission("reviews.write"), updateReview);
 router.delete("/:reviewId", protect, deleteReview);
 
 // ---- Admin moderation ----
-router.get("/admin/all", protect, authorize("admin"), adminListReviews);
-router.patch("/admin/:reviewId/status", protect, authorize("admin"), adminModerateReview);
-router.post("/admin/recalculate", protect, authorize("admin"), adminRecalculateRatings);
+router.get("/admin/all", protect, authorize("admin"), requirePermission("reviews.manage"), adminListReviews);
+router.patch("/admin/:reviewId/status", protect, authorize("admin"), requirePermission("reviews.manage"), adminModerateReview);
+router.post("/admin/recalculate", protect, authorize("admin"), requirePermission("reviews.manage"), adminRecalculateRatings);
 
 module.exports = router;

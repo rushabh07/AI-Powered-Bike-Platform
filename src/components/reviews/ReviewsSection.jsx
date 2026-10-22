@@ -5,6 +5,7 @@ import { RatingSummary } from "./RatingSummary";
 import { ReviewCard } from "./ReviewCard";
 import { ReviewForm } from "./ReviewForm";
 import { ToastStack } from "./Toast";
+import { useRole } from "../../context/RoleContext";
 
 let toastSeq = 0;
 const makeToast = (type, message) => ({ id: ++toastSeq, type, message });
@@ -32,6 +33,10 @@ const getStoredUser = () => {
 export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState(getStoredUser);
+    // "Write reviews" is an admin-controlled permission. The API enforces
+    // it; this only keeps the UI honest.
+    const { can, loading: permLoading } = useRole();
+    const mayWriteReviews = permLoading ? true : can("reviews.write");
 
     const [reviews, setReviews] = useState([]);
     const [summary, setSummary] = useState(null);
@@ -262,7 +267,7 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
         }
     };
 
-    const canWrite = isLoggedIn && (eligible || currentUser?.role === "admin");
+    const canWrite = isLoggedIn && mayWriteReviews && (eligible || currentUser?.role === "admin");
 
     return (
         <section aria-label={`Ratings and reviews for ${motorcycleName || "this motorcycle"}`} className="rounded-3xl border border-white/10 bg-[#0c0c0c] p-6 sm:p-8">
@@ -288,15 +293,24 @@ export const ReviewsSection = ({ motorcycleId, motorcycleName = "" }) => {
                         <span className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-400">
                             You have already reviewed this motorcycle.
                         </span>
-                        <button
-                            onClick={() => openForm()}
-                            disabled={!myReview}
-                            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-zinc-300 transition outline-none hover:border-orange-500/40 hover:text-orange-400 focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-50"
-                        >
-                            <PenLine size={13} />
-                            Edit your review
-                        </button>
+                        {mayWriteReviews && (
+                            <button
+                                onClick={() => openForm()}
+                                disabled={!myReview}
+                                className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-bold text-zinc-300 transition outline-none hover:border-orange-500/40 hover:text-orange-400 focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-50"
+                            >
+                                <PenLine size={13} />
+                                Edit your review
+                            </button>
+                        )}
                     </div>
+                ) : !mayWriteReviews ? (
+                    /* The role is not permitted to write reviews. */
+                    <span className="rounded-xl border border-white/10 px-4 py-2.5 text-xs text-zinc-500">
+                        {!isLoggedIn
+                            ? "Login and purchase this motorcycle to share your review."
+                            : "Your account type is not permitted to write reviews."}
+                    </span>
                 ) : purchaseState === "pending" ? (
                     /* Purchase in progress — a review unlocks once it completes. */
                     <span className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-xs font-medium text-amber-300">

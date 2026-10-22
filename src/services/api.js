@@ -556,6 +556,43 @@ export const restoreHomepage = () =>
     apiFetch("/admin/homepage/restore", { method: "POST", body: JSON.stringify({}) });
 
 // ==========================================
+// Roles & Permissions
+// ==========================================
+
+// The signed-in user's own role configuration + effective permissions.
+export const getMyRole = () => apiFetch("/roles/me");
+
+// Admin: list every manageable role (with live user counts).
+export const getAdminRoles = () => apiFetch("/admin/roles");
+
+// Admin: permissions for one role.
+export const getRolePermissions = (role) => apiFetch(`/admin/roles/${role}/permissions`);
+
+// Admin: update a role's permission map.
+export const saveRolePermissions = (role, permissions) =>
+    apiFetch(`/admin/roles/${role}/permissions`, {
+        method: "PUT",
+        body: JSON.stringify({ permissions }),
+    });
+
+// Admin: enable / disable a role.
+export const setRoleActive = (role, enabled) =>
+    apiFetch(`/admin/roles/${role}/active`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+    });
+
+// Admin: paginated users holding a role.
+export const getRoleUsers = (role, page = 1, limit = 20) =>
+    apiFetch(`/admin/roles/${role}/users?page=${page}&limit=${limit}`);
+
+// Admin: audit history of role / permission changes.
+export const getRoleAuditLog = (role = "", limit = 50) =>
+    apiFetch(
+        `/admin/roles/audit?limit=${limit}${role ? `&role=${encodeURIComponent(role)}` : ""}`
+    );
+
+// ==========================================
 // Motorcycle Orders (online + offline)
 // ==========================================
 

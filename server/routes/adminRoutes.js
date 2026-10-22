@@ -11,6 +11,7 @@ try {
 }
 
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const adminOnly = authorize("admin");
@@ -97,7 +98,7 @@ router.put("/profile", protect, adminOnly, async (req, res) => {
 // GET ADMIN STATS (for Database page)
 // GET /api/admin/stats
 // =====================================================
-router.get("/stats", protect, adminOnly, async (req, res) => {
+router.get("/stats", protect, adminOnly, requirePermission("analytics.view"), async (req, res) => {
     try {
         const [totalUsers, totalProviders, totalAdmins, motorcycles] =
             await Promise.all([
@@ -152,7 +153,7 @@ router.get("/stats", protect, adminOnly, async (req, res) => {
 // GET ALL USERS (for Database page)
 // GET /api/admin/users
 // =====================================================
-router.get("/users", protect, adminOnly, async (req, res) => {
+router.get("/users", protect, adminOnly, requirePermission("users.manage"), async (req, res) => {
     try {
         const users = await User.find({})
             .select("-password")
@@ -249,7 +250,7 @@ const isValidAdId = (id) => require("mongoose").Types.ObjectId.isValid(id);
 
 // Dashboard counts + filtered list
 // GET /api/admin/advertisements?search=&status=&placement=&sort=&page=&limit=
-router.get("/advertisements", protect, adminOnly, async (req, res) => {
+router.get("/advertisements", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         const { search = "", status = "", placement = "", sort = "order", page = 1, limit = 20 } = req.query;
         const filter = { isDeleted: false };
@@ -301,7 +302,7 @@ router.get("/advertisements", protect, adminOnly, async (req, res) => {
 });
 
 // GET /api/admin/advertisements/:id
-router.get("/advertisements/:id", protect, adminOnly, async (req, res) => {
+router.get("/advertisements/:id", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         if (!isValidAdId(req.params.id)) {
             return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
@@ -316,7 +317,7 @@ router.get("/advertisements/:id", protect, adminOnly, async (req, res) => {
 });
 
 // POST /api/admin/advertisements
-router.post("/advertisements", protect, adminOnly, async (req, res) => {
+router.post("/advertisements", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         const errors = validateAdInput(req.body);
         if (errors.length > 0) {
@@ -331,7 +332,7 @@ router.post("/advertisements", protect, adminOnly, async (req, res) => {
 });
 
 // PUT /api/admin/advertisements/:id
-router.put("/advertisements/:id", protect, adminOnly, async (req, res) => {
+router.put("/advertisements/:id", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         if (!isValidAdId(req.params.id)) {
             return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
@@ -354,7 +355,7 @@ router.put("/advertisements/:id", protect, adminOnly, async (req, res) => {
 });
 
 // PATCH /api/admin/advertisements/:id/status
-router.patch("/advertisements/:id/status", protect, adminOnly, async (req, res) => {
+router.patch("/advertisements/:id/status", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         if (!isValidAdId(req.params.id)) {
             return res.status(400).json({ success: false, message: "Invalid advertisement ID." });
@@ -377,7 +378,7 @@ router.patch("/advertisements/:id/status", protect, adminOnly, async (req, res) 
 });
 
 // PATCH /api/admin/advertisements/reorder  { order: [{ id, displayOrder }] }
-router.patch("/advertisements/reorder", protect, adminOnly, async (req, res) => {
+router.patch("/advertisements/reorder", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         const { order } = req.body;
         if (!Array.isArray(order) || order.length === 0) {
@@ -403,7 +404,7 @@ router.patch("/advertisements/reorder", protect, adminOnly, async (req, res) => 
 });
 
 // DELETE /api/admin/advertisements/:id (soft delete)
-router.delete("/advertisements/:id", protect, adminOnly, async (req, res) => {
+router.delete("/advertisements/:id", protect, adminOnly, requirePermission("ads.manage"), async (req, res) => {
     try {
         if (!isValidAdId(req.params.id)) {
             return res.status(400).json({ success: false, message: "Invalid advertisement ID." });

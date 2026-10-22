@@ -35,8 +35,8 @@ import {
     ClipboardList,
     Megaphone,
     Package,
-    Newspaper,
-    LayoutTemplate,
+Newspaper,
+LayoutTemplate,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
@@ -47,6 +47,8 @@ import BikeOrdersSection from "../components/admin/BikeOrdersSection";
 import ReviewsManagementSection from "../components/admin/ReviewsManagementSection";
 import MotorcycleUpdatesSection from "../components/admin/MotorcycleUpdatesSection";
 import HomepageManagementSection from "../components/admin/HomepageManagementSection";
+import RoleManagementSection from "../components/admin/RoleManagementSection";
+import { useRole } from "../context/RoleContext";
 import { getAdminSubscriptionStats } from "../services/api";
 
 const API_URL = "http://localhost:5000/api/motorcycles";
@@ -651,6 +653,9 @@ const AdminDashboard = () => {
 
     // Active tab: dashboard | motorcycles | database | profile
     const [activeTab, setActiveTab] = useState("dashboard");
+
+    // Effective permissions for the signed-in admin (admin-controlled).
+    const { can } = useRole();
 
     // Admin profile state
     const [admin, setAdmin] = useState(null);
@@ -1265,21 +1270,24 @@ const AdminDashboard = () => {
                         <nav className="flex-1 space-y-2 px-4 py-6">
                             {[
                                 { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={19} /> },
-                                { id: "motorcycles", label: "Motorcycles", icon: <Bike size={19} /> },
-                                { id: "colors", label: "Colors", icon: <Palette size={19} /> },
-                                { id: "enquiries", label: "Bike Enquiries", icon: <ClipboardList size={19} /> },
-                                { id: "dealerships", label: "Dealerships", icon: <Store size={19} /> },
-                                { id: "orders", label: "Orders", icon: <Package size={19} /> },
-                                { id: "reviews", label: "Reviews", icon: <Star size={19} /> },
+                                { id: "motorcycles", label: "Motorcycles", icon: <Bike size={19} />, permission: "motorcycles.manage" },
+                                { id: "colors", label: "Colors", icon: <Palette size={19} />, permission: "motorcycles.manage" },
+                                { id: "enquiries", label: "Bike Enquiries", icon: <ClipboardList size={19} />, permission: "orders.manage" },
+                                { id: "dealerships", label: "Dealerships", icon: <Store size={19} />, permission: "dealerships.manage" },
+                                { id: "orders", label: "Orders", icon: <Package size={19} />, permission: "orders.manage" },
+                                { id: "reviews", label: "Reviews", icon: <Star size={19} />, permission: "reviews.manage" },
                                 { id: "messages", label: "Messages", icon: <Mail size={19} /> },
-                                { id: "advertisements", label: "Advertisements", icon: <Megaphone size={19} /> },
-                                { id: "updates", label: "Motorcycle Updates", icon: <Newspaper size={19} /> },
-                                { id: "homepage", label: "Homepage Management", icon: <LayoutTemplate size={19} /> },
-                                { id: "subscriptions", label: "AI Subscriptions", icon: <Crown size={19} /> },
-                                { id: "analytics", label: "AI Analytics", icon: <TrendingUp size={19} /> },
-                                { id: "database", label: "Database", icon: <Database size={19} /> },
-                                { id: "profile", label: "Profile", icon: <User size={19} /> },
-                            ].map((item) => {
+                                { id: "advertisements", label: "Advertisements", icon: <Megaphone size={19} />, permission: "ads.manage" },
+                                { id: "updates", label: "Motorcycle Updates", icon: <Newspaper size={19} />, permission: "updates.manage" },
+                                { id: "homepage", label: "Homepage Management", icon: <LayoutTemplate size={19} />, permission: "settings.manage" },
+                                { id: "subscriptions", label: "AI Subscriptions", icon: <Crown size={19} />, permission: "ai.plans" },
+                                { id: "analytics", label: "AI Analytics", icon: <TrendingUp size={19} />, permission: "ai.plans" },
+    { id: "database", label: "Database", icon: <Database size={19} />, permission: "analytics.view" },
+    { id: "roles", label: "Roles & Permissions", icon: <ShieldCheck size={19} />, permission: "users.manage" },
+    { id: "profile", label: "Profile", icon: <User size={19} /> },
+                            ]
+                                .filter((item) => !item.permission || can(item.permission))
+                                .map((item) => {
                                 const isActive = activeTab === item.id;
                                 return (
                                     <button
@@ -1372,6 +1380,7 @@ const AdminDashboard = () => {
                                     {activeTab === "subscriptions" && "AI Subscriptions"}
                                     {activeTab === "analytics" && "AI Analytics"}
                                     {activeTab === "database" && "Database"}
+                                    {activeTab === "roles" && "Roles & Permissions"}
                                     {activeTab === "profile" && "Admin Profile"}
                                 </h2>
 
@@ -1390,6 +1399,7 @@ const AdminDashboard = () => {
                                     {activeTab === "subscriptions" && "Monitor active subscriptions, user token allowances, and payment statuses."}
                                     {activeTab === "analytics" && "Analyze subscription volume growth, revenue timelines, and plan distributions."}
                                     {activeTab === "database" && "Inspect collections, brand/category breakdown and users."}
+                                    {activeTab === "roles" && "Control which account types can sign in and which features each role may use."}
                                     {activeTab === "profile" && "View and edit your administrator profile."}
                                 </p>
 
@@ -1992,6 +2002,9 @@ const AdminDashboard = () => {
                                 formatPrice={formatPrice}
                             />
                         )}
+
+                        {/* ROLES & PERMISSIONS TAB */}
+                        {activeTab === "roles" && <RoleManagementSection />}
 
                         {/* PROFILE TAB */}
                         {activeTab === "profile" && (

@@ -32,11 +32,14 @@ import DealershipReviews from "../components/dealership/DealershipReviews";
 import DealershipNotifications from "../components/dealership/DealershipNotifications";
 import DealershipReports from "../components/dealership/DealershipReports";
 import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
+import { useRole } from "../context/RoleContext";
 
 const API_URL = "http://localhost:5000/api";
 
 const ProviderDashboard = () => {
     const navigate = useNavigate();
+    // Effective permissions for the signed-in provider (admin-controlled).
+    const { can } = useRole();
 
     // =========================
     // STATE
@@ -617,13 +620,15 @@ const ProviderDashboard = () => {
                             </button>
 
                             {[
-                                ["inventory", "Inventory", Package],
-                                ["orders", "Orders", ShoppingCart],
-                                ["sales", "Sales", Briefcase],
-                                ["reviews", "Reviews", Star],
-                                ["notifications", "Notifications", Bell],
-                                ["reports", "Reports", FileText],
-                            ].map(([id, label, Icon]) => (
+                                ["inventory", "Inventory", Package, "dealerships.manage"],
+                                ["orders", "Orders", ShoppingCart, "orders.manage"],
+                                ["sales", "Sales", Briefcase, "orders.manage"],
+                                ["reviews", "Reviews", Star, null],
+                                ["notifications", "Notifications", Bell, null],
+                                ["reports", "Reports", FileText, "analytics.view"],
+                            ]
+                                .filter(([, , , permission]) => !permission || can(permission))
+                                .map(([id, label, Icon]) => (
                                 <button
                                     key={id}
                                     type="button"

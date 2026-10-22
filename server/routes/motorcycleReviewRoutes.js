@@ -11,6 +11,7 @@ const {
     createReview,
 } = require("../controllers/reviewController");
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 
 // Reuse the optional-auth behaviour from reviewRoutes.
 const optionalAuth = async (req, _res, next) => {
@@ -34,6 +35,15 @@ const router = express.Router();
 
 router.get("/:motorcycleId/reviews", optionalAuth, getMotorcycleReviews);
 router.get("/:motorcycleId/reviews/summary", getMotorcycleReviewSummary);
-router.post("/:motorcycleId/reviews", protect, createReview);
+// Writing a review is gated by the "reviews.write" permission, exactly
+// like the canonical POST /api/reviews route. Both aliases must enforce
+// the same rule, otherwise revoking the permission would be bypassed
+// by calling this nested endpoint instead.
+router.post(
+    "/:motorcycleId/reviews",
+    protect,
+    requirePermission("reviews.write"),
+    createReview
+);
 
 module.exports = router;

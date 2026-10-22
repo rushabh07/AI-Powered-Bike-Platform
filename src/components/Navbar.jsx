@@ -15,19 +15,21 @@ import {
     Heart,
     Newspaper,
     ChevronDown,
+    Lock,
 } from "lucide-react";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import UserAvatar from "./UserAvatar";
+import { useRole } from "../context/RoleContext";
 import { getSubscriptionStatus } from "../services/api";
 
 /* Single source of truth for the primary navigation.
    Order here is the order shown on desktop and mobile. */
 const NAV_LINKS = [
     { label: "Home", path: "/" },
-    { label: "Motorcycles", path: "/motorcycles" },
+    { label: "Motorcycles", path: "/motorcycles", permission: "motorcycles.view" },
     { label: "Latest Updates", path: "/updates", icon: Newspaper },
-    { label: "AI Advisor", path: "/ai-advisor", icon: Sparkles },
+    { label: "AI Advisor", path: "/ai-advisor", icon: Sparkles, permission: "ai.advisor" },
     { label: "AI Plan", path: "/ai-plan" },
     { label: "Compare", path: "/compare" },
     { label: "Contact", path: "/contact" },
@@ -40,6 +42,7 @@ const focusRing =
 export default function Navbar({ activeTab, showTokens = true, position = "sticky", leading = null }) {
     const location = useLocation();
     const navigate = useNavigate();
+    const { can, loading: permLoading } = useRole();
 
     const [currentUser, setCurrentUser] = useState(() => {
         try {
@@ -185,6 +188,10 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
         : "Free Plan";
     const tokenLabel = `${Number(tokenCount).toLocaleString("en-IN")} Tokens`;
 
+    // When the admin has not granted "ai.advisor" to the user's role,
+    // hide every AI-plan / token entry point from the menus.
+    const aiAllowed = can("ai.advisor");
+
     /* Route-aware active state. `activeTab` wins when a page pins one. */
     const isLinkActive = (path) => {
         if (activeTab) {
@@ -196,6 +203,12 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
     };
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
+
+    /* Links the current role cannot use are shown but DISABLED, with a
+       clear "access denied" treatment instead of being removed. The API
+       enforces the same rule — this is presentation only. */
+    const linkAllowed = (l) =>
+        permLoading || !l.permission || can(l.permission);
 
     /* "fixed" is used by full-bleed pages (Homepage) that already
        reserve their own top spacing; everything else stays sticky. */
@@ -228,8 +241,23 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                         className="hidden min-w-0 flex-1 items-center justify-center gap-5 xl:flex xl:gap-7"
                         aria-label="Primary"
                     >
-                        {NAV_LINKS.map(({ label, path, icon: Icon }) => {
+                        {NAV_LINKS.map(({ label, path, icon: Icon, permission }) => {
                             const active = isLinkActive(path);
+                            const allowed = linkAllowed({ permission });
+                            if (!allowed) {
+                                return (
+                                    <span
+                                        key={label}
+                                        title="Access denied — your role does not have permission to view this page."
+                                        aria-disabled="true"
+                                        className="relative flex cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2 text-[13.5px] font-semibold tracking-tight text-zinc-500 opacity-50 dark:text-zinc-600"
+                                    >
+                                        <Icon size={15} aria-hidden="true" />
+                                        {label}
+                                        <Lock size={11} aria-hidden="true" className="dark:text-orange-400/70" />
+                                    </span>
+                                );
+                            }
                             return (
                                 <Link
                                     key={label}
@@ -280,7 +308,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                         )}
 
                         {/* Subscription & Token Badge (customers only) */}
-                        {isCustomer && (
+                        {isCustomer && aiAllowed && (
                             <Link
                                 to="/ai-plan"
                                 title="Manage your MOTOAI plan"
@@ -352,7 +380,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                                     {roleLabel}
                                                 </span>
                                                 <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                                                    {tokenLabel}
+                                                    {aiAllowed ? tokenLabel : ""}
                                                 </span>
                                             </div>
                                         </div>
@@ -407,6 +435,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                                     </Link>
                                                 </>
                                             )}
+                                            {aiAllowed && (
                                             <Link
                                                 to="/ai-plan"
                                                 role="menuitem"
@@ -416,6 +445,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                                 <Crown size={14} aria-hidden="true" />
                                                 MOTOAI Plan
                                             </Link>
+                                            )}
                                             <Link
                                                 to="/motorcycles"
                                                 role="menuitem"
@@ -514,6 +544,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                         </p>
                                     </div>
                                 </div>
+                                {aiAllowed && (
                                 <Link
                                     to="/ai-plan"
                                     onClick={closeMobileMenu}
@@ -529,6 +560,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                     </span>
                                     <span>{tokenLabel}</span>
                                 </Link>
+                                )}
                             </div>
                         ) : (
                             <div className="mb-5 grid grid-cols-2 gap-2">
@@ -554,8 +586,24 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             Browse
                         </p>
                         <ul className="space-y-1">
-                            {NAV_LINKS.map(({ label, path, icon: Icon }) => {
+                            {NAV_LINKS.map(({ label, path, icon: Icon, permission }) => {
                                 const active = isLinkActive(path);
+                                const allowed = linkAllowed({ permission });
+                                if (!allowed) {
+                                    return (
+                                        <li key={label}>
+                                            <span
+                                                title="Access denied — your role does not have permission to view this page."
+                                                aria-disabled="true"
+                                                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-zinc-500 opacity-60 dark:text-zinc-600"
+                                            >
+                                                <Icon size={17} aria-hidden="true" className="text-zinc-500" />
+                                                {label}
+                                                <Lock size={13} aria-hidden="true" className="ml-auto text-orange-400/70" />
+                                            </span>
+                                        </li>
+                                    );
+                                }
                                 return (
                                     <li key={label}>
                                         <Link
@@ -663,6 +711,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                             </li>
                                         </>
                                     )}
+                                    {aiAllowed && (
                                     <li>
                                         <Link
                                             to="/ai-plan"
@@ -673,6 +722,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                             MOTOAI Plan
                                         </Link>
                                     </li>
+                                    )}
                                     <li>
                                         <button
                                             type="button"

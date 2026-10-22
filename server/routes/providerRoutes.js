@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Booking = require("../models/Booking");
 
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 // Allow both providers and admins (frontend ProtectedRoute uses ["provider", "admin"])
@@ -684,13 +685,13 @@ const panel = require("../controllers/dealershipPanelController");
 
 router.get("/panel/overview", protect, panelOnly, panel.getOverview);
 
-router.get("/panel/dealerships", protect, panelOnly, panel.listMyDealerships);
-router.post("/panel/dealerships", protect, panelOnly, panel.createMyDealership);
-router.put("/panel/dealerships/:dealershipId", protect, panelOnly, panel.updateMyDealership);
-router.post("/panel/dealerships/:dealershipId/staff", protect, panelOnly, panel.addStaff);
-router.delete("/panel/dealerships/:dealershipId/staff/:userId", protect, panelOnly, panel.removeStaff);
-router.get("/panel/dealerships/:dealershipId/stock", protect, panelOnly, panel.getStock);
-router.put("/panel/dealerships/:dealershipId/stock", protect, panelOnly, panel.updateStock);
+router.get("/panel/dealerships", protect, panelOnly, requirePermission("dealerships.manage"), panel.listMyDealerships);
+router.post("/panel/dealerships", protect, panelOnly, requirePermission("dealerships.manage"), panel.createMyDealership);
+router.put("/panel/dealerships/:dealershipId", protect, panelOnly, requirePermission("dealerships.manage"), panel.updateMyDealership);
+router.post("/panel/dealerships/:dealershipId/staff", protect, panelOnly, requirePermission("dealerships.manage"), panel.addStaff);
+router.delete("/panel/dealerships/:dealershipId/staff/:userId", protect, panelOnly, requirePermission("dealerships.manage"), panel.removeStaff);
+router.get("/panel/dealerships/:dealershipId/stock", protect, panelOnly, requirePermission("dealerships.manage"), panel.getStock);
+router.put("/panel/dealerships/:dealershipId/stock", protect, panelOnly, requirePermission("dealerships.manage"), panel.updateStock);
 
 router.get("/panel/bookings", protect, panelOnly, panel.listBookings);
 router.put("/panel/bookings/:bookingId", protect, panelOnly, panel.updateBooking);

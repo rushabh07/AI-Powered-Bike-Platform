@@ -2,6 +2,7 @@ const express = require("express");
 
 const { chat } = require("../controllers/aiAdvisorController");
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const router = express.Router();
 // POST /api/ai-advisor/chat
 // Login required: only authenticated users can chat
 // =====================================================
-router.post("/chat", protect, chat);
+router.post("/chat", protect, requirePermission("ai.advisor"), chat);
 
 // =====================================================
 // TEST ROUTE

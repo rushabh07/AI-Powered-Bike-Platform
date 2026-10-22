@@ -12,15 +12,16 @@ const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const adminOnly = authorize("admin");
+const { requirePermission } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
 // Admin endpoints — all mounted under /api/admin, admin role required
-router.get("/", protect, adminOnly, getAdminUpdates);
-router.get("/:id", protect, adminOnly, getAdminUpdate);
-router.post("/", protect, adminOnly, createUpdate);
-router.put("/:id", protect, adminOnly, updateUpdate);
-router.patch("/:id/status", protect, adminOnly, updateUpdateStatus);
-router.delete("/:id", protect, adminOnly, deleteUpdate);
+router.get("/", protect, adminOnly, requirePermission("updates.manage"), getAdminUpdates);
+router.get("/:id", protect, adminOnly, requirePermission("updates.manage"), getAdminUpdate);
+router.post("/", protect, adminOnly, requirePermission("updates.manage"), createUpdate);
+router.put("/:id", protect, adminOnly, requirePermission("updates.manage"), updateUpdate);
+router.patch("/:id/status", protect, adminOnly, requirePermission("updates.manage"), updateUpdateStatus);
+router.delete("/:id", protect, adminOnly, requirePermission("updates.manage"), deleteUpdate);
 
 module.exports = router;

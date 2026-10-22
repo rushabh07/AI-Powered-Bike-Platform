@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     FaMotorcycle,
@@ -23,6 +23,7 @@ import Logo from "../components/Logo";
 import Navbar from "../components/Navbar";
 import AdvertisementSlider from "../components/AdvertisementSlider";
 import LatestUpdatesSection from "../components/LatestUpdatesSection";
+import { useRole } from "../context/RoleContext";
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -288,16 +289,15 @@ const RecommendationCard = ({ bike, navigate }) => {
 // ==============================
 function Homepage() {
     const navigate = useNavigate();
+    const { can } = useRole();
 
     // CMS-driven homepage configuration (published)
     const [homeConfig, setHomeConfig] = useState(null);
-    const [homeConfigLoading, setHomeConfigLoading] = useState(true);
     useEffect(() => {
         fetch("http://localhost:5000/api/homepage")
             .then((res) => (res.ok ? res.json() : { configured: false, sections: [] }))
             .then((data) => setHomeConfig(data))
-            .catch(() => setHomeConfig({ configured: false, sections: [] }))
-            .finally(() => setHomeConfigLoading(false));
+            .catch(() => setHomeConfig({ configured: false, sections: [] }));
     }, []);
 
     // Config helpers: section(key) returns the published section or null
@@ -307,6 +307,7 @@ function Homepage() {
     };
     const isSectionOn = (key) => {
         if (!homeConfig?.configured) return true; // no config → show everything (fallback)
+        if (!homeConfig.sections || homeConfig.sections.length === 0) return true; // broken config → fallback
         const s = section(key);
         return s ? s.enabled : false;
     };
@@ -679,6 +680,7 @@ function Homepage() {
                         {/* HERO BUTTONS */}
                         <div className="flex flex-wrap gap-4 mt-8">
 
+                            {can("ai.advisor") && (
                             <Button
                                 primary
                                 onClick={() =>
@@ -692,6 +694,7 @@ function Homepage() {
                                     <FaArrowRight />
                                 </span>
                             </Button>
+                            )}
 
                             <Button
                                 onClick={() =>
@@ -952,6 +955,7 @@ function Homepage() {
             )}
 
             {/* ================= AI ADVISOR ================= */}
+            {can("ai.advisor") && (
             <section className="py-24 px-6 bg-[#0c0c0c]">
 
                 <div className="max-w-6xl mx-auto">
@@ -1015,6 +1019,7 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ================= TRUST ================= */}
             <section className="py-20 px-6">
@@ -1070,7 +1075,7 @@ function Homepage() {
                         <Button
                             primary
                             onClick={() =>
-                                go("/ai-advisor")
+                                go(can("ai.advisor") ? "/ai-advisor" : "/motorcycles")
                             }
                             className="px-8 py-4"
                         >

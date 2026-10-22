@@ -29,6 +29,7 @@ import {
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import UpgradeModal from "../components/UpgradeModal";
+import { useRole } from "../context/RoleContext";
 
 const CHATS_API = "http://localhost:5000/api/chats";
 const ACTIVE_CHAT_KEY = "motoai_active_chat";
@@ -326,6 +327,7 @@ const RecommendationCards = ({ bikes, navigate }) => {
 export default function AIAdvisor() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { can, loading: roleLoading, displayName: roleName } = useRole();
     // Bike context from "Ask MOTOAI About This Bike" (details page)
     const askAbout = location.state?.askAbout || null;
     const askCompare = location.state?.askCompare || null;
@@ -1014,6 +1016,36 @@ export default function AIAdvisor() {
             </div>
         </div>
     );
+
+    // Permission gate: when the admin has not granted "ai.advisor" to
+    // this role, show a blocked panel instead of the full advisor UI.
+    // The backend still enforces the rule on every chat API call.
+    if (currentUser && !roleLoading && !can("ai.advisor")) {
+        return (
+            <div className="min-h-screen bg-[#070708] text-white flex items-center justify-center px-6">
+                <div className="max-w-md w-full text-center rounded-3xl border border-orange-500/20 bg-[#0b0b0b] p-10">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                        <Sparkles size={26} className="text-orange-500" />
+                    </div>
+                    <h1 className="text-2xl font-black mt-6">
+                        AI Advisor is unavailable
+                    </h1>
+                    <p className="text-sm text-zinc-500 mt-3 leading-relaxed">
+                        Your role{roleName ? ` (${roleName})` : ""} does not
+                        have permission to use MotoMind AI. If you believe
+                        this is a mistake, contact your platform
+                        administrator.
+                    </p>
+                    <button
+                        onClick={() => navigate("/")}
+                        className="mt-8 px-6 py-3 rounded-xl bg-white text-black font-semibold hover:bg-orange-500 transition"
+                    >
+                        Back to Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-[#070708] text-white">

@@ -263,6 +263,13 @@ const getPublicHomepage = async (req, res) => {
             .filter((s) => s.enabled)
             .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
+        // A published config with no visible sections is a broken state
+        // (e.g. an empty draft got published). Fall back to the default,
+        // non-CMS homepage instead of returning an empty page.
+        if (sections.length === 0) {
+            return res.status(200).json({ success: true, configured: false, sections: [] });
+        }
+
         const resolved = [];
         for (const section of sections) {
             try {
@@ -299,6 +306,13 @@ const getOrCreateDraft = async () => {
     if (!draft) {
         const created = await HomepageConfig.create({ page: "homepage", mode: "draft", sections: DEFAULT_SECTIONS });
         draft = created.toObject();
+    } else if ((draft.sections || []).length === 0) {
+        const healed = await HomepageConfig.findByIdAndUpdate(
+            draft._id,
+            { $set: { sections: DEFAULT_SECTIONS } },
+            { new: true, runValidators: true }
+        );
+        draft = healed.toObject();
     }
     return draft;
 };
@@ -395,6 +409,11 @@ const publishHomepage = async (req, res) => {
         const errors = validateSections(draft.sections);
         if (errors.length > 0) {
             return res.status(400).json({ success: false, message: errors.join(" ") });
+        }
+
+        // Never publish an empty homepage — it would blank the live site.
+        if ((draft.sections || []).length === 0) {
+            return res.status(400).json({ success: false, message: "Cannot publish an empty homepage configuration." });
         }
 
         const now = new Date();

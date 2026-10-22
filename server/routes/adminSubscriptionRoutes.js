@@ -9,6 +9,7 @@ const {
     exportSubscriptions,
 } = require("../controllers/adminSubscriptionController");
 const protect = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/roleMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
