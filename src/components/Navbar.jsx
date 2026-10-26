@@ -517,7 +517,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                 createPortal(
                     <>
                         <div
-                            className="fixed inset-x-0 top-16 z-40 bg-black/50 backdrop-blur-sm sm:top-[72px] xl:hidden"
+                            className="fixed inset-0 top-16 bottom-0 z-40 bg-black/60 backdrop-blur-sm sm:top-[72px] xl:hidden"
                             onClick={closeMobileMenu}
                             aria-hidden="true"
                         />

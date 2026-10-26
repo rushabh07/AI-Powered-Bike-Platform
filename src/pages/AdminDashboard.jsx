@@ -48,6 +48,7 @@ import ReviewsManagementSection from "../components/admin/ReviewsManagementSecti
 import MotorcycleUpdatesSection from "../components/admin/MotorcycleUpdatesSection";
 import HomepageManagementSection from "../components/admin/HomepageManagementSection";
 import RoleManagementSection from "../components/admin/RoleManagementSection";
+import AdminCommissionSection from "../components/admin/AdminCommissionSection";
 import { useRole } from "../context/RoleContext";
 import { getAdminSubscriptionStats } from "../services/api";
 
@@ -1225,6 +1226,15 @@ const AdminDashboard = () => {
 
             <div className="flex">
 
+                {/* BACKDROP OVERLAY ON MOBILE */}
+                {sidebarOpen && (
+                    <div
+                        onClick={() => setSidebarOpen(false)}
+                        aria-label="Close sidebar overlay"
+                        className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm lg:hidden transition-opacity"
+                    />
+                )}
+
                 {/* SIDEBAR */}
 
                 <aside
@@ -1245,23 +1255,33 @@ const AdminDashboard = () => {
 
                         {/* LOGO */}
 
-                        <div className="flex items-center gap-3 border-b border-white/10 px-6 py-6">
+                        <div className="flex items-center justify-between border-b border-white/10 px-6 py-6">
 
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500 text-black">
-                                <Bike size={24} />
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500 text-black">
+                                    <Bike size={24} />
+                                </div>
+
+                                <div>
+                                    <h1 className="text-xl font-black tracking-wide">
+                                        MOTO<span className="text-orange-500">
+                                            AI
+                                        </span>
+                                    </h1>
+
+                                    <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500">
+                                        Admin Panel
+                                    </p>
+                                </div>
                             </div>
 
-                            <div>
-                                <h1 className="text-xl font-black tracking-wide">
-                                    MOTO<span className="text-orange-500">
-                                        AI
-                                    </span>
-                                </h1>
-
-                                <p className="text-[10px] uppercase tracking-[0.25em] text-gray-500">
-                                    Admin Panel
-                                </p>
-                            </div>
+                            <button
+                                onClick={() => setSidebarOpen(false)}
+                                aria-label="Close sidebar"
+                                className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white lg:hidden"
+                            >
+                                <X size={20} />
+                            </button>
 
                         </div>
 
@@ -1275,6 +1295,7 @@ const AdminDashboard = () => {
                                 { id: "enquiries", label: "Bike Enquiries", icon: <ClipboardList size={19} />, permission: "orders.manage" },
                                 { id: "dealerships", label: "Dealerships", icon: <Store size={19} />, permission: "dealerships.manage" },
                                 { id: "orders", label: "Orders", icon: <Package size={19} />, permission: "orders.manage" },
+                                { id: "commissions", label: "Dealership Commissions", icon: <Coins size={19} /> },
                                 { id: "reviews", label: "Reviews", icon: <Star size={19} />, permission: "reviews.manage" },
                                 { id: "messages", label: "Messages", icon: <Mail size={19} /> },
                                 { id: "advertisements", label: "Advertisements", icon: <Megaphone size={19} />, permission: "ads.manage" },
@@ -1372,6 +1393,7 @@ const AdminDashboard = () => {
                                     {activeTab === "enquiries" && "Bike Enquiries"}
                                     {activeTab === "dealerships" && "Dealerships"}
                                     {activeTab === "orders" && "Orders"}
+                                    {activeTab === "commissions" && "Dealership Commissions"}
                                     {activeTab === "reviews" && "Reviews"}
                                     {activeTab === "messages" && "Messages"}
                                     {activeTab === "advertisements" && "Advertisements"}
@@ -1391,6 +1413,7 @@ const AdminDashboard = () => {
                                     {activeTab === "enquiries" && "Review test rides and purchase enquiries."}
                                     {activeTab === "dealerships" && "Manage authorized dealerships."}
                                     {activeTab === "orders" && "Online and offline motorcycle orders."}
+                                    {activeTab === "commissions" && "Review referred dealership sales, commission rules, and recorded payouts."}
                                     {activeTab === "reviews" && "Moderate user reviews and verified-purchase ratings."}
                                     {activeTab === "messages" && "Contact form submissions from customers."}
                                     {activeTab === "advertisements" && "Manage homepage promotional banners."}
@@ -1966,6 +1989,9 @@ const AdminDashboard = () => {
                         {activeTab === "orders" && (
                             <BikeOrdersSection />
                         )}
+
+                        {/* DEALERSHIP COMMISSIONS TAB */}
+                        {activeTab === "commissions" && <AdminCommissionSection />}
 
                         {/* REVIEWS TAB */}
                         {activeTab === "reviews" && (

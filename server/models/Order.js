@@ -52,6 +52,12 @@ const orderSchema = new mongoose.Schema(
             ref: "Dealership",
             required: true,
         },
+        referral: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Referral",
+            default: null,
+            index: true,
+        },
         quantity: {
             type: Number,
             default: 1,

@@ -55,7 +55,7 @@ const Logo = ({
                 </h1>
 
                 {showSubtitle && (
-                    <p className={`${subtitleSizes[size] || subtitleSizes.md} mt-1 font-semibold leading-none text-gray-500`}>
+                    <p className={`${subtitleSizes[size] || subtitleSizes.md} mt-1 font-semibold leading-none text-gray-500 hidden min-[360px]:block truncate`}>
                         SMART MOTORCYCLE BUYING
                     </p>
                 )}

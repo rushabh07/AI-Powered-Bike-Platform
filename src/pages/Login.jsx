@@ -227,11 +227,11 @@ const Login = () => {
                     </div>
 
                     {/* ── Main Card ── */}
-                    <div className="rounded-2xl border border-gray-800 bg-[#111]/95 p-7 md:p-8 shadow-2xl">
+                    <div className="rounded-2xl border border-gray-800 bg-[#111]/95 p-4 sm:p-7 md:p-8 shadow-2xl">
 
                         {/* AI Badge */}
                         <div className="flex items-center justify-center mb-5">
-                            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold transition-all duration-500 ${roleConfig.badgeBg} ${roleConfig.badgeBorder} ${roleConfig.badgeText}`}>
+                            <div className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border text-[11px] sm:text-xs font-semibold transition-all duration-500 ${roleConfig.badgeBg} ${roleConfig.badgeBorder} ${roleConfig.badgeText}`}>
                                 <FaRobot />
                                 AI-Powered Motorcycle Platform
                             </div>
@@ -241,10 +241,10 @@ const Login = () => {
                             ROLE SELECTOR
                         ════════════════════════════════════ */}
                         <div className="mb-6">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 text-center">
+                            <p className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3 text-center">
                                 Select your role
                             </p>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                                 {ROLES.map((role) => {
                                     const Icon = role.icon;
                                     const isActive = selectedRole === role.id;
@@ -253,27 +253,27 @@ const Login = () => {
                                             key={role.id}
                                             type="button"
                                             onClick={() => { setSelectedRole(role.id); setError(""); }}
-                                            className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-300 group
+                                            className={`relative flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl border transition-all duration-300 group
                                                 ${isActive
-                                                    ? `bg-gradient-to-b ${role.gradient} ${role.border} ring-2 ${role.ring} scale-[1.03]`
+                                                    ? `bg-gradient-to-b ${role.gradient} ${role.border} ring-2 ${role.ring} scale-[1.02]`
                                                     : "border-gray-800 bg-[#0d0d0d] hover:border-gray-600 hover:scale-[1.01]"
                                                 }`}
                                         >
                                             {/* Icon circle */}
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 ${isActive ? role.iconBg : "bg-gray-800/60"}`}>
-                                                <Icon className={`text-sm transition-all duration-300 ${isActive ? role.iconColor : "text-gray-500"}`} />
+                                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-300 ${isActive ? role.iconBg : "bg-gray-800/60"}`}>
+                                                <Icon className={`text-xs sm:text-sm transition-all duration-300 ${isActive ? role.iconColor : "text-gray-500"}`} />
                                             </div>
                                             <div className="text-center">
-                                                <p className={`text-xs font-bold leading-tight transition-colors duration-300 ${isActive ? "text-white" : "text-gray-400"}`}>
+                                                <p className={`text-[10px] sm:text-xs font-bold leading-tight transition-colors duration-300 ${isActive ? "text-white" : "text-gray-400"}`}>
                                                     {role.label}
                                                 </p>
-                                                <p className={`text-[9px] leading-tight mt-0.5 transition-colors duration-300 ${isActive ? "text-gray-400" : "text-gray-600"}`}>
+                                                <p className={`text-[8px] sm:text-[9px] leading-tight mt-0.5 transition-colors duration-300 ${isActive ? "text-gray-400" : "text-gray-600"} truncate max-w-[80px]`}>
                                                     {role.subtitle}
                                                 </p>
                                             </div>
                                             {/* Active dot */}
                                             {isActive && (
-                                                <span className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${role.iconColor.replace("text-", "bg-")}`} />
+                                                <span className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-1.5 h-1.5 rounded-full ${role.iconColor.replace("text-", "bg-")}`} />
                                             )}
                                         </button>
                                     );

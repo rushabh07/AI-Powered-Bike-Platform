@@ -31,6 +31,7 @@ import DealershipSales from "../components/dealership/DealershipSales";
 import DealershipReviews from "../components/dealership/DealershipReviews";
 import DealershipNotifications from "../components/dealership/DealershipNotifications";
 import DealershipReports from "../components/dealership/DealershipReports";
+import DealershipReferrals from "../components/dealership/DealershipReferrals";
 import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 
@@ -623,6 +624,7 @@ const ProviderDashboard = () => {
                                 ["inventory", "Inventory", Package, "dealerships.manage"],
                                 ["orders", "Orders", ShoppingCart, "orders.manage"],
                                 ["sales", "Sales", Briefcase, "orders.manage"],
+                                ["referrals", "Referrals & Commissions", TrendingUp, "orders.manage"],
                                 ["reviews", "Reviews", Star, null],
                                 ["notifications", "Notifications", Bell, null],
                                 ["reports", "Reports", FileText, "analytics.view"],
@@ -779,6 +781,7 @@ const ProviderDashboard = () => {
                         ["inventory", "Inventory", Package],
                         ["orders", "Orders", ShoppingCart],
                         ["sales", "Sales", Briefcase],
+                        ["referrals", "Referrals & Commissions", TrendingUp],
                         ["reviews", "Reviews", Star],
                         ["notifications", "Notifications", Bell],
                         ["reports", "Reports", FileText],
@@ -1430,6 +1433,17 @@ const ProviderDashboard = () => {
                             <p className="text-zinc-500 mt-2 text-sm">Cash, UPI, card and bank-transfer records.</p>
                         </div>
                         <DealershipSales />
+                    </section>
+                    )}
+
+                    {activeSection === "referrals" && (
+                    <section id="referrals" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Customer leads</p>
+                            <h2 className="text-2xl font-bold mt-1">Referrals & Commissions</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">Follow up on referrals assigned to your dealership and submit completed offline sales for admin verification.</p>
+                        </div>
+                        <DealershipReferrals />
                     </section>
                     )}
 

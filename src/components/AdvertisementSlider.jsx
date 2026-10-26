@@ -70,6 +70,20 @@ const AdvertisementSlider = () => {
         if (e.key === "ArrowRight") go(1);
     };
 
+    // Touch swipe navigation
+    const onTouchStart = (e) => {
+        touchX.current = e.touches[0].clientX;
+    };
+
+    const onTouchEnd = (e) => {
+        if (touchX.current === null) return;
+        const diff = touchX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) {
+            go(diff > 0 ? 1 : -1);
+        }
+        touchX.current = null;
+    };
+
     const openAd = (ad) => {
         if (!ad || !isSafeTarget(ad.targetUrl)) return;
         fetch(`http://localhost:5000/api/advertisements/${ad._id}/click`, { method: "POST" }).catch(() => {});
@@ -94,7 +108,11 @@ const AdvertisementSlider = () => {
             <p className="mb-2 text-center text-sm font-bold uppercase tracking-[0.25em] text-zinc-400">
                 Advertisement
             </p>
-            <div className="relative aspect-[16/10] sm:aspect-[21/8] overflow-hidden rounded-3xl border border-white/10 bg-[#111]">
+            <div
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+                className="relative aspect-[16/10] sm:aspect-[21/8] overflow-hidden rounded-3xl border border-white/10 bg-[#111]"
+            >
                 {ads.map((ad, i) => {
                     const img = isMobile && ad.mobileImageUrl ? ad.mobileImageUrl : ad.imageUrl;
                     const active = i === index;
@@ -119,20 +137,20 @@ const AdvertisementSlider = () => {
                                     className="h-full w-full object-cover"
                                 />
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                            <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                            <div className="absolute inset-x-0 bottom-0 p-4 sm:p-8">
                                 {ad.badgeText && (
-                                    <span className="mb-2 inline-block rounded-full bg-orange-500 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-black">
+                                    <span className="mb-1.5 sm:mb-2 inline-block rounded-full bg-orange-500 px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-black">
                                         {ad.badgeText}
                                     </span>
                                 )}
-                                <h2 className="max-w-xl text-xl font-black text-white sm:text-3xl">{ad.title}</h2>
+                                <h2 className="max-w-xl text-lg font-black text-white sm:text-2xl md:text-3xl line-clamp-2">{ad.title}</h2>
                                 {ad.description && (
-                                    <p className="mt-1 max-w-xl truncate text-sm text-zinc-300 sm:text-base">{ad.description}</p>
+                                    <p className="mt-1 max-w-xl text-xs sm:text-base text-zinc-300 line-clamp-1 sm:line-clamp-2">{ad.description}</p>
                                 )}
                                 <button
                                     onClick={() => openAd(ad)}
-                                    className="mt-3 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-black transition hover:bg-orange-400"
+                                    className="mt-2.5 sm:mt-3 rounded-xl bg-orange-500 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-black transition hover:bg-orange-400"
                                 >
                                     {ad.ctaText || "Explore Bikes"}
                                 </button>

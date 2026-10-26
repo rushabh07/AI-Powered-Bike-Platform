@@ -160,7 +160,7 @@ const Register = () => {
                 </button>
 
                 {/* Card */}
-                <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-7 shadow-2xl">
+                <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 sm:p-7 shadow-2xl">
 
                     {/* Logo */}
                     <div className="flex justify-center mb-5">

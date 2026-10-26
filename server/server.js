@@ -28,6 +28,10 @@ const adminHomepageRoutes = require("./routes/adminHomepageRoutes");
 const roleRoutes = require("./routes/roleRoutes");
 const adminRoleRoutes = require("./routes/adminRoleRoutes");
 const { ensureRoleConfigs } = require("./services/roleConfigService");
+const adminCommissionRoutes = require("./routes/adminCommissionRoutes");
+const providerCommissionRoutes = require("./routes/providerCommissionRoutes");
+const providerReferralRoutes = require("./routes/providerReferralRoutes");
+const referralRoutes = require("./routes/referralRoutes");
 
 dotenv.config();
 
@@ -149,6 +153,12 @@ app.use("/api/subscription", subscriptionRoutes);
 // Role & permission management
 app.use("/api/roles", roleRoutes);
 app.use("/api/admin/roles", adminRoleRoutes);
+
+// Commission system
+app.use("/api/admin/commissions", adminCommissionRoutes);
+app.use("/api/provider/commissions", providerCommissionRoutes);
+app.use("/api/provider", providerReferralRoutes);
+app.use("/api/referrals", referralRoutes);
 
 // Self-hosted user assets (avatars) — served same-origin from the API
 // so the browser never makes third-party requests (no tracking notices).

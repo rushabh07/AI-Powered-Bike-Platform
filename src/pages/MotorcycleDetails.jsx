@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
+import Navbar from "../components/Navbar";
 import { getMotorcycleVariants } from "../services/api";
 import ReviewsSection from "../components/reviews/ReviewsSection";
 import BuyPurchaseModal from "../components/BuyPurchaseModal";
@@ -268,15 +269,20 @@ const MotorcycleDetails = () => {
         <div className="min-h-screen bg-[#070707] text-white">
 
             {/* =====================================================
+                NAVBAR
+            ===================================================== */}
+            <Navbar activeTab="motorcycles" />
+
+            {/* =====================================================
                 TOP NAVIGATION
             ===================================================== */}
-            <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-7">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
 
                 <button
                     onClick={() => navigate("/motorcycles")}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition"
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm"
                 >
-                    <ArrowLeft size={18} />
+                    <ArrowLeft size={16} />
                     Back to Motorcycles
                 </button>
 
@@ -285,7 +291,7 @@ const MotorcycleDetails = () => {
             {/* =====================================================
                 MAIN CONTENT
             ===================================================== */}
-            <main className="max-w-7xl mx-auto px-5 sm:px-8 py-8">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
 
                 <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-10">
 
@@ -513,14 +519,14 @@ const MotorcycleDetails = () => {
                         </div>
 
                         {/* NAME */}
-                        <div className="flex items-start justify-between gap-5">
+                        <div className="flex items-start justify-between gap-4">
 
-                            <div>
-                                <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white">
+                            <div className="min-w-0">
+                                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white break-words">
                                     {bike.name}
                                 </h1>
 
-                                <p className="text-gray-400 mt-3">
+                                <p className="text-gray-400 mt-2 sm:mt-3 text-sm sm:text-base">
                                     {bike.category}
                                 </p>
                             </div>
@@ -631,15 +637,15 @@ const MotorcycleDetails = () => {
                         )}
 
                         {/* PRICE */}
-                        <div className="mt-8">
-                            <p className="text-sm text-gray-500 uppercase tracking-wider">
+                        <div className="mt-7 sm:mt-8">
+                            <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider">
                                 Ex-showroom Price
                             </p>
-                            <p className="text-4xl font-black mt-1 text-white">
+                            <p className="text-3xl sm:text-4xl font-black mt-1 text-white">
                                 ₹{Number(exShowroom || 0).toLocaleString("en-IN")}
                             </p>
                             {selectedCityPrice && (
-                                <p className="mt-2 text-lg font-bold text-orange-400">
+                                <p className="mt-2 text-base sm:text-lg font-bold text-orange-400">
                                     On-road ({selectedCity}): ₹{Number(onRoadPrice).toLocaleString("en-IN")}
                                 </p>
                             )}
@@ -1030,17 +1036,17 @@ const MotorcycleDetails = () => {
 // =====================================================
 const SpecCard = ({ icon, label, value }) => {
     return (
-        <div className="bg-[#111] border border-white/10 rounded-2xl p-4">
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-3 sm:p-4 min-w-0">
 
-            <div className="flex items-center gap-2 text-orange-500 mb-2">
-                {icon}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-orange-500 mb-1.5 sm:mb-2 min-w-0">
+                <span className="shrink-0">{icon}</span>
 
-                <span className="text-xs uppercase tracking-wider text-gray-500">
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider text-gray-400 truncate">
                     {label}
                 </span>
             </div>
 
-            <p className="font-semibold text-white">
+            <p className="font-semibold text-white text-sm sm:text-base truncate">
                 {value}
             </p>
 

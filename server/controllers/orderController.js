@@ -3,6 +3,8 @@ const Order = require("../models/Order");
 const Motorcycle = require("../models/Motorcycle");
 const Dealership = require("../models/Dealership");
 const { createNotification } = require("./notificationController");
+const { createReferral } = require("../services/referralService");
+const { notifyNewReferral } = require("../services/commissionNotificationService");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const OFFLINE_METHODS = ["cash", "card", "upi", "bank_transfer"];
@@ -175,6 +177,7 @@ const createOfflineOrder = async (req, res) => {
             deliveryMethod,
             customerDetails,
             visitDate,
+            consentToShare = false,
         } = req.body;
 
         if (!isValidId(motorcycleId)) {
@@ -202,6 +205,13 @@ const createOfflineOrder = async (req, res) => {
         }).lean();
         if (!dealership) {
             return res.status(404).json({ success: false, message: "Selected dealership is currently unavailable." });
+        }
+
+        if (consentToShare !== true) {
+            return res.status(400).json({
+                success: false,
+                message: "Please consent to sharing your contact details with the selected dealership.",
+            });
         }
 
         const method = String(offlinePaymentType || "").toLowerCase().trim();
@@ -290,6 +300,32 @@ const createOfflineOrder = async (req, res) => {
         const historyNote = `Offline purchase request submitted${method ? ` (preferred method: ${method})` : ""}${parsedVisitDate ? ` (scheduled visit: ${parsedVisitDate.toDateString()})` : ""}`;
         pushHistory(order, "pending_dealership_confirmation", req.user._id, historyNote);
         await order.save();
+
+        // The order request starts attribution, but it is not evidence of a
+        // completed sale and never creates a commission by itself.
+        try {
+            const { referral, created } = await createReferral({
+                customer: req.user._id,
+                motorcycle: priced.bike._id,
+                dealership: dealership._id,
+                source: "offline_order",
+                consentToShare: true,
+                contact: { name, phone, email },
+                order: order._id,
+                actor: req.user,
+            });
+            order.referral = referral._id;
+            await order.save();
+            if (created) notifyNewReferral({ referral, dealership, motorcycle: priced.bike }).catch(() => {});
+            else if (!referral.order) {
+                referral.order = order._id;
+                await referral.save();
+            }
+        } catch (referralError) {
+            // Keep the existing offline purchase flow available if referral
+            // attribution has a transient failure; the saved order remains.
+            console.error("Offline order referral creation error:", referralError.message);
+        }
 
         const populated = await Order.findById(order._id)
             .populate({ path: "motorcycle", select: "name brand image images" })

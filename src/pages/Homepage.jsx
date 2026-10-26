@@ -451,7 +451,7 @@ function Homepage() {
             <main id="main-content">
             {/* ================= HERO ================= */}
             {isSectionOn("hero") && (
-            <section className="pt-36 pb-24 px-6 relative overflow-hidden">
+            <section className="pt-24 sm:pt-32 lg:pt-36 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
 
                 <div className="absolute top-40 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-500/10 blur-[120px] rounded-full" />
 
@@ -465,7 +465,7 @@ function Homepage() {
                             AI-Powered Motorcycle Discovery
                         </div>
 
-                        <h1 className="text-5xl md:text-7xl font-black leading-[1.05] mt-7">
+                        <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.08] mt-5 sm:mt-7">
                             {section("hero")?.content?.title ? (
                                 <>
                                     {section("hero").content.title}
@@ -481,7 +481,7 @@ function Homepage() {
                             )}
                         </h1>
 
-                        <p className="text-gray-400 text-lg leading-relaxed max-w-xl mt-7">
+                        <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mt-4 sm:mt-7">
                             {section("hero")?.content?.subtitle ||
                                 "Tell MOTOAI your budget, riding style and requirements. Our intelligent recommendation system finds motorcycles that match your lifestyle."}
                         </p>
@@ -710,7 +710,7 @@ function Homepage() {
                         </div>
 
                         {/* STATS */}
-                        <div className="flex flex-wrap gap-12 mt-14">
+                        <div className="grid grid-cols-2 gap-6 sm:flex sm:flex-wrap sm:gap-12 mt-10 sm:mt-14">
                             {(() => {
                                 const stats = section("stats")?.content;
                                 const items = stats
@@ -727,11 +727,11 @@ function Homepage() {
                                       ];
                                 return items.map(([value, label]) => (
                                     <div key={label}>
-                                        <h3 className="text-3xl font-bold">
+                                        <h3 className="text-2xl sm:text-3xl font-bold">
                                             {value}
                                         </h3>
 
-                                        <p className="text-gray-500 text-sm">
+                                        <p className="text-gray-500 text-xs sm:text-sm">
                                             {label}
                                         </p>
                                     </div>
@@ -752,18 +752,18 @@ function Homepage() {
                                 alt="Royal Enfield Hunter 350 motorcycle"
                                 fetchPriority="high"
                                 decoding="async"
-                                className="w-full h-[450px] object-cover"
+                                className="w-full h-64 sm:h-80 md:h-[400px] lg:h-[450px] object-cover"
                             />
 
                             <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
-                            <div className="absolute bottom-0 p-7">
+                            <div className="absolute bottom-0 p-5 sm:p-7">
 
-                                <p className="text-orange-400 text-sm">
+                                <p className="text-orange-400 text-xs sm:text-sm">
                                     AI Recommended
                                 </p>
 
-                                <h2 className="text-3xl font-bold mt-1">
+                                <h2 className="text-2xl sm:text-3xl font-bold mt-1">
                                     Royal Enfield Hunter 350
                                 </h2>
 
@@ -799,7 +799,7 @@ function Homepage() {
 
             {/* ================= RECOMMENDATIONS ================= */}
             {isSectionOn("featuredMotorcycles") && (
-            <section className="py-24 px-6 bg-[#0c0c0c]">
+            <section className="py-16 sm:py-24 px-4 sm:px-6 bg-[#0c0c0c]">
 
                 <div className="max-w-7xl mx-auto">
 
@@ -812,7 +812,7 @@ function Homepage() {
                                 AI RECOMMENDATIONS
                             </div>
 
-                            <h2 className="text-4xl md:text-5xl font-black">
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">
                                 Bikes Picked{" "}
                                 <span className="text-orange-500">
                                     For You
@@ -837,7 +837,7 @@ function Homepage() {
                         </button>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-7">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-7">
 
                         {sectionsLoading ? (
                             [1, 2, 3].map((item) => (
@@ -868,27 +868,27 @@ function Homepage() {
 
             {/* ================= CATEGORIES ================= */}
             {isSectionOn("categories") && (
-            <section className="py-24 px-6">
+            <section className="py-16 sm:py-24 px-4 sm:px-6">
 
                 <div className="max-w-7xl mx-auto">
 
-                    <div className="text-center mb-14">
+                    <div className="text-center mb-10 sm:mb-14">
 
-                        <p className="text-orange-500 font-semibold">
+                        <p className="text-orange-500 font-semibold text-sm sm:text-base">
                             EXPLORE BY STYLE
                         </p>
 
-                        <h2 className="text-4xl md:text-5xl font-black mt-3">
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mt-3">
                             What Kind of Rider Are You?
                         </h2>
 
-                        <p className="text-gray-500 mt-4">
+                        <p className="text-gray-500 mt-3 sm:mt-4 text-sm sm:text-base">
                             Choose a category and discover motorcycles
                             built for you.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 sm:gap-5">
 
                         {sectionsLoading ? (
                             [1, 2, 3, 4, 5].map((item) => (
@@ -916,9 +916,9 @@ function Homepage() {
                                             )}`
                                         )
                                     }
-                                    className="group text-left p-7 rounded-2xl bg-[#111] border border-gray-800 hover:border-orange-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300"
+                                    className="group text-left p-4 sm:p-7 rounded-2xl bg-[#111] border border-gray-800 hover:border-orange-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300"
                                 >
-                                    <div className="text-4xl mb-6 text-orange-500">
+                                    <div className="text-3xl sm:text-4xl mb-4 sm:mb-6 text-orange-500">
                                         {IconComp
                                             ? <IconComp aria-hidden="true" />
                                             : meta.icon}
@@ -956,21 +956,21 @@ function Homepage() {
 
             {/* ================= AI ADVISOR ================= */}
             {can("ai.advisor") && (
-            <section className="py-24 px-6 bg-[#0c0c0c]">
+            <section className="py-16 sm:py-24 px-4 sm:px-6 bg-[#0c0c0c]">
 
                 <div className="max-w-6xl mx-auto">
 
-                    <div className="rounded-3xl border border-orange-500/20 bg-orange-500/10 p-8 md:p-14">
+                    <div className="rounded-3xl border border-orange-500/20 bg-orange-500/10 p-6 sm:p-10 md:p-14">
 
-                        <div className="grid md:grid-cols-2 gap-12 items-center">
+                        <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
 
                             <div>
 
-                                <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center">
-                                    <FaRobot className="text-black text-3xl" />
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-orange-500 rounded-2xl flex items-center justify-center">
+                                    <FaRobot className="text-black text-2xl sm:text-3xl" />
                                 </div>
 
-                                <h2 className="text-4xl md:text-5xl font-black mt-7">
+                                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black mt-5 sm:mt-7">
                                     Your Personal
                                     <br />
                                     <span className="text-orange-500">
@@ -1022,9 +1022,9 @@ function Homepage() {
             )}
 
             {/* ================= TRUST ================= */}
-            <section className="py-20 px-6">
+            <section className="py-14 sm:py-20 px-4 sm:px-6">
 
-                <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-6">
+                <div className="max-w-7xl mx-auto grid sm:grid-cols-2 md:grid-cols-3 gap-6">
 
                     {trustFeatures.map(
                         ([Icon, title, text]) => (
@@ -1048,15 +1048,15 @@ function Homepage() {
             </section>
 
             {/* ================= CTA ================= */}
-            <section className="py-24 px-6">
+            <section className="py-16 sm:py-24 px-4 sm:px-6">
 
                 <div className="max-w-5xl mx-auto text-center">
 
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                         <FaMotorcycle className="text-orange-500 text-2xl" />
                     </div>
 
-                    <h2 className="text-4xl md:text-6xl font-black mt-7">
+                    <h2 className="text-3xl sm:text-4xl md:text-6xl font-black mt-5 sm:mt-7">
                         Your Dream Bike
                         <br />
                         <span className="text-orange-500">
@@ -1099,9 +1099,9 @@ function Homepage() {
             {/* ================= FOOTER ================= */}
             <footer className="bg-[#050505] border-t border-gray-800">
 
-                <div className="max-w-7xl mx-auto px-6 py-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
 
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-12">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10 sm:gap-12">
 
                         <div className="lg:col-span-2">
 

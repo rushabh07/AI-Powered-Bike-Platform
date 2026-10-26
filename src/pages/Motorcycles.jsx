@@ -467,6 +467,101 @@ export default function Motorcycles() {
 
                     </div>
                 </div>
+                {/* MOBILE FILTER DRAWER */}
+                {showFilters && (
+                    <div className="fixed inset-0 z-50 flex lg:hidden">
+                        <div
+                            onClick={() => setShowFilters(false)}
+                            aria-label="Close filters backdrop"
+                            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+                        />
+                        <div className="relative ml-auto flex h-full w-full max-w-xs sm:max-w-sm flex-col bg-[#111113] p-5 shadow-2xl overflow-y-auto border-l border-white/10 z-10">
+                            <div className="mb-5 flex items-center justify-between pb-3 border-b border-white/10">
+                                <div className="flex items-center gap-2">
+                                    <SlidersHorizontal
+                                        size={17}
+                                        className="text-orange-500"
+                                    />
+                                    <h3 className="font-bold text-white">
+                                        Filters
+                                    </h3>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={clearFilters}
+                                        className="text-xs font-medium text-orange-500 hover:text-orange-400"
+                                    >
+                                        Clear All
+                                    </button>
+                                    <button
+                                        onClick={() => setShowFilters(false)}
+                                        aria-label="Close filters"
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <FilterTitle title="Category" />
+                            <div className="space-y-1.5">
+                                {categories.map((item) => (
+                                    <button
+                                        key={item}
+                                        onClick={() => setCategory(item)}
+                                        className={`block w-full rounded-lg px-3 py-2.5 text-left text-sm transition ${category === item
+                                            ? "bg-orange-500 font-semibold text-black shadow-lg shadow-orange-500/10"
+                                            : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                                            }`}
+                                    >
+                                        {item}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <FilterTitle title="Maximum Price" />
+                            <input
+                                type="range"
+                                min="100000"
+                                max="1000000"
+                                step="25000"
+                                value={maxPrice}
+                                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                                className="w-full accent-orange-500"
+                            />
+                            <div className="mt-2 flex justify-between text-xs text-zinc-500">
+                                <span>₹1 L</span>
+                                <span>₹10 L</span>
+                            </div>
+                            <p className="mt-3 text-sm font-semibold text-orange-500">
+                                Up to {formatPrice(maxPrice)}
+                            </p>
+
+                            <FilterTitle title="Minimum Engine" />
+                            <select
+                                value={minEngine}
+                                onChange={(e) => setMinEngine(Number(e.target.value))}
+                                className="w-full rounded-xl border border-white/10 bg-[#161619] px-3 py-3 text-sm text-white outline-none focus:border-orange-500/50"
+                            >
+                                <option value="0">Any Engine</option>
+                                <option value="150">150+ CC</option>
+                                <option value="200">200+ CC</option>
+                                <option value="250">250+ CC</option>
+                                <option value="300">300+ CC</option>
+                                <option value="400">400+ CC</option>
+                            </select>
+
+                            <div className="mt-8 pt-4 border-t border-white/10">
+                                <button
+                                    onClick={() => setShowFilters(false)}
+                                    className="w-full rounded-xl bg-orange-500 py-3 text-sm font-bold text-black transition hover:bg-orange-400 shadow-lg shadow-orange-500/10"
+                                >
+                                    Show {bikes.length} Bikes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* =====================================
                     CONTENT
@@ -477,10 +572,7 @@ export default function Motorcycles() {
                         FILTERS
                     ===================================== */}
                     <aside
-                        className={`${showFilters
-                            ? "block"
-                            : "hidden"
-                            } h-fit rounded-2xl border border-white/10 bg-white/[0.025] p-5 lg:block`}
+                        className="hidden h-fit rounded-2xl border border-white/10 bg-white/[0.025] p-5 lg:block"
                     >
 
                         <div className="mb-6 flex items-center justify-between">
@@ -596,6 +688,49 @@ export default function Motorcycles() {
                     ===================================== */}
                     <section>
 
+                        {/* ACTIVE FILTER CHIPS */}
+                        {(category !== "All" || brand !== "All" || maxPrice < 1000000 || minEngine > 0 || !!search.trim()) && (
+                            <div className="mb-6 flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-semibold text-zinc-500">Active Filters:</span>
+                                {category !== "All" && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs text-orange-400">
+                                        {category}
+                                        <button onClick={() => setCategory("All")} aria-label="Remove category filter" className="hover:text-white"><X size={12} /></button>
+                                    </span>
+                                )}
+                                {brand !== "All" && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs text-orange-400">
+                                        {brand}
+                                        <button onClick={() => setBrand("All")} aria-label="Remove brand filter" className="hover:text-white"><X size={12} /></button>
+                                    </span>
+                                )}
+                                {maxPrice < 1000000 && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs text-orange-400">
+                                        ≤ {formatPrice(maxPrice)}
+                                        <button onClick={() => setMaxPrice(1000000)} aria-label="Remove price filter" className="hover:text-white"><X size={12} /></button>
+                                    </span>
+                                )}
+                                {minEngine > 0 && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs text-orange-400">
+                                        {minEngine}+ CC
+                                        <button onClick={() => setMinEngine(0)} aria-label="Remove engine filter" className="hover:text-white"><X size={12} /></button>
+                                    </span>
+                                )}
+                                {search.trim() && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs text-orange-400">
+                                        "{search}"
+                                        <button onClick={() => updateSearch("")} aria-label="Remove search keyword" className="hover:text-white"><X size={12} /></button>
+                                    </span>
+                                )}
+                                <button
+                                    onClick={clearFilters}
+                                    className="text-xs text-zinc-500 hover:text-orange-400 underline underline-offset-2 ml-1"
+                                >
+                                    Reset all
+                                </button>
+                            </div>
+                        )}
+
                         {/* =====================================
                             BRAND FILTER (dynamic from API)
                         ===================================== */}
@@ -678,7 +813,7 @@ export default function Motorcycles() {
 
                         {loading ? (
 
-                            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 
                                 {[1, 2, 3, 4, 5, 6].map(
                                     (item) => (
@@ -727,7 +862,7 @@ export default function Motorcycles() {
 
                         ) : (
 
-                            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 
                                 {bikes.map((bike) => (
 

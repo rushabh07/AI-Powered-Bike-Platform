@@ -236,17 +236,21 @@ export default function AIPlan() {
 
                     {/* Dynamic Savings Highlight */}
                     {savingsAmount > 0 && (
-                        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-400">
-                            <TrendingUp size={14} />
-                            Monthly equivalent: {inr(monthly.price)} × 12 = {inr(monthlyEquivalent)} • Yearly price: {inr(yearly.price)} • You save: {inr(savingsAmount)}/year
+                        <div className="mt-4 inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3.5 sm:px-4 py-1.5 text-[11px] sm:text-xs font-semibold text-emerald-400 text-center">
+                            <TrendingUp size={14} className="shrink-0" />
+                            <span>Monthly equiv: {inr(monthly.price)} × 12 = {inr(monthlyEquivalent)}</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span>Yearly: {inr(yearly.price)}</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="font-bold text-emerald-300">You save: {inr(savingsAmount)}/year</span>
                         </div>
                     )}
                 </div>
 
                 {/* Pricing Cards Grid */}
-                <div className="mt-12 grid gap-8 lg:grid-cols-3">
+                <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {/* FREE PLAN CARD */}
-                    <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-xl transition hover:border-white/20">
+                    <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-8 backdrop-blur-xl transition hover:border-white/20">
                         <div>
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-bold text-white">Free</h2>

@@ -47,6 +47,7 @@ const Checkout = () => {
         address: "",
     });
     const [submitting, setSubmitting] = useState(false);
+    const [consentToShare, setConsentToShare] = useState(false);
 
     // Minimum visit date = today in YYYY-MM-DD
     const todayStr = useMemo(() => {
@@ -160,6 +161,10 @@ const Checkout = () => {
             setError("Please choose your preferred showroom visit date.");
             return;
         }
+        if (!consentToShare) {
+            setError("Please consent to sharing your contact details with the selected dealership.");
+            return;
+        }
         if (visitDate < todayStr) {
             setError("Preferred visit date cannot be in the past.");
             return;
@@ -175,6 +180,7 @@ const Checkout = () => {
                 dealershipId,
                 deliveryMethod,
                 visitDate,
+                consentToShare,
                 customerDetails: {
                     ...customer,
                     preferredVisitDate: visitDate,
@@ -548,6 +554,10 @@ const Checkout = () => {
                                         placeholder="order-updates@example.com"
                                         className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-orange-500/50"
                                     />
+                                </label>
+                                <label className="flex items-start gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-zinc-300 sm:col-span-2">
+                                    <input type="checkbox" checked={consentToShare} onChange={(e) => setConsentToShare(e.target.checked)} className="mt-0.5 accent-orange-500" />
+                                    <span>I agree to share my contact details with the selected dealership so it can respond to this purchase request and follow up about this motorcycle.</span>
                                 </label>
                                 <label className="block text-xs font-semibold text-zinc-400 sm:col-span-2">
                                     Address / Landmark (optional)
