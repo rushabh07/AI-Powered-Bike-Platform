@@ -47,6 +47,8 @@ import BikeOrdersSection from "../components/admin/BikeOrdersSection";
 import ReviewsManagementSection from "../components/admin/ReviewsManagementSection";
 import MotorcycleUpdatesSection from "../components/admin/MotorcycleUpdatesSection";
 import HomepageManagementSection from "../components/admin/HomepageManagementSection";
+import MotorcycleVariantManager from "../components/admin/MotorcycleVariantManager";
+import RegionalPricingManager from "../components/admin/RegionalPricingManager";
 import RoleManagementSection from "../components/admin/RoleManagementSection";
 import AdminCommissionSection from "../components/admin/AdminCommissionSection";
 import { useRole } from "../context/RoleContext";
@@ -75,7 +77,8 @@ const emptyForm = {
     topSpeed: "",
     image: "",
     description: "",
-    images: []
+    images: [],
+    cityPrices: [],
 };
 
 const CATEGORY_OPTIONS = [
@@ -1007,7 +1010,8 @@ const AdminDashboard = () => {
                             label: "Main View"
                         }
                     ]
-                    : []
+                    : [],
+            cityPrices: Array.isArray(bike.cityPrices) ? bike.cityPrices.map((row) => ({ ...row, state: row.state || "" })) : [],
         });
 
         setError("");
@@ -2620,6 +2624,9 @@ const AdminDashboard = () => {
                                         </div>
 
                                     </div>
+
+                                    {editingId && <RegionalPricingManager motorcycleId={editingId} initialCityPrices={form.cityPrices} />}
+                                    {editingId && <MotorcycleVariantManager motorcycleId={editingId} />}
 
                                 </div>
 

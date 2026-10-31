@@ -78,6 +78,11 @@ const orderSchema = new mongoose.Schema(
             default: 0,
             min: 0,
         },
+        otherCharges: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
         taxAmount: {
             type: Number,
             default: 0,

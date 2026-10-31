@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
     getMotorcycleVariants,
+    getAdminMotorcycleVariants,
     getVariant,
     createVariant,
     updateVariant,
@@ -16,6 +17,7 @@ const router = express.Router();
 
 // Public
 router.get("/motorcycles/:motorcycleId", getMotorcycleVariants);
+router.get("/admin/motorcycles/:motorcycleId", protect, adminOnly, getAdminMotorcycleVariants);
 router.get("/:variantId", getVariant);
 
 // Admin

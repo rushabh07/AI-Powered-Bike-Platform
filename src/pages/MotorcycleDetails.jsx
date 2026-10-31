@@ -4,6 +4,8 @@ import BrandLogo from "../components/BrandLogo";
 import Navbar from "../components/Navbar";
 import { getMotorcycleVariants } from "../services/api";
 import ReviewsSection from "../components/reviews/ReviewsSection";
+import RegionalPriceSummary from "../components/RegionalPriceSummary";
+import { useRegion } from "../context/RegionContext";
 import BuyPurchaseModal from "../components/BuyPurchaseModal";
 import {
     ArrowLeft,
@@ -33,6 +35,7 @@ const API_URL = "http://localhost:5000/api/motorcycles";
 const MotorcycleDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { region, setRegion, regions } = useRegion();
 
     const [bike, setBike] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -44,10 +47,14 @@ const MotorcycleDetails = () => {
 
     const [variants, setVariants] = useState([]);
     const [selectedVariant, setSelectedVariant] = useState(null);
-    const [selectedCity, setSelectedCity] = useState("");
     const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
     const [citySearch, setCitySearch] = useState("");
     const cityDropdownRef = useRef(null);
+    const selectedCity = region.city;
+    const setSelectedCity = (city) => {
+        const state = regions.find((item) => item.cities.some((option) => option.toLowerCase() === city.toLowerCase()))?.state || region.state;
+        setRegion({ state, city });
+    };
 
     // Live database-backed rating for the header (from /api/motorcycles/:id).
     // The full section below is rendered by <ReviewsSection/>.
@@ -57,7 +64,7 @@ const MotorcycleDetails = () => {
     const [showBuyModal, setShowBuyModal] = useState(false);
 
     const bikeColors = (bike?.colors || []).filter((c) => c.available !== false);
-    const activeColorImage = selectedColor?.image || null;
+    const activeColorImage = selectedVariant?.images?.length ? null : selectedColor?.image || null;
     const isLoggedIn = () => {
         try {
             return !!(localStorage.getItem("token") && localStorage.getItem("user"));
@@ -66,26 +73,15 @@ const MotorcycleDetails = () => {
         }
     };
 
-    const baseExShowroom = bike?.exShowroomPrice || bike?.price || 0;
-    const activeExShowroom = selectedVariant
-        ? selectedVariant.exShowroomPrice
-        : baseExShowroom;
     const activeCityPrices =
         selectedVariant?.cityPrices?.length > 0
             ? selectedVariant.cityPrices
             : bike?.cityPrices || [];
-    const availableCities = activeCityPrices.map((cp) => cp.city);
+    const availableCities = regions.flatMap((item) => item.cities);
     const filteredCities = availableCities.filter((c) =>
         c.toLowerCase().includes(citySearch.toLowerCase())
     );
-    const selectedCityPrice = activeCityPrices.find(
-        (cp) => cp.city === selectedCity
-    );
-    const exShowroom = activeExShowroom;
-    const insurance = Math.round(exShowroom * 0.03);
-    const onRoadPrice = selectedCityPrice
-        ? exShowroom + selectedCityPrice.roadTax + insurance
-        : 0;
+    const priceSummary = selectedVariant?.regionalPricing || bike?.regionalPricing;
 
     // =====================================================
     // FETCH MOTORCYCLE
@@ -96,7 +92,8 @@ const MotorcycleDetails = () => {
                 setLoading(true);
                 setError("");
 
-                const response = await fetch(`${API_URL}/${id}`);
+                const params = new URLSearchParams({ state: region.state, city: region.city });
+                const response = await fetch(`${API_URL}/${id}?${params.toString()}`);
                 const data = await response.json();
 
                 if (!response.ok) {
@@ -119,12 +116,14 @@ const MotorcycleDetails = () => {
         if (id) {
             fetchMotorcycle();
         }
-    }, [id]);
+    }, [id, region.state, region.city]);
 
     // Fetch variants
     useEffect(() => {
         if (!bike?._id) return;
-        getMotorcycleVariants(bike._id)
+        setSelectedVariant(null);
+        setActiveImage(0);
+        getMotorcycleVariants(bike._id, region)
             .then((data) => {
                 setVariants(data.variants || []);
                 if (data.variants && data.variants.length > 0) {
@@ -132,7 +131,7 @@ const MotorcycleDetails = () => {
                 }
             })
             .catch(() => {});
-    }, [bike?._id]);
+    }, [bike?._id, region.state, region.city]);
 
     // Default to the first available color
     useEffect(() => {
@@ -163,6 +162,10 @@ const MotorcycleDetails = () => {
             return [];
         }
 
+        if (Array.isArray(selectedVariant?.images) && selectedVariant.images.length > 0) {
+            return selectedVariant.images;
+        }
+
         // New MongoDB format
         if (Array.isArray(bike.images) && bike.images.length > 0) {
             return bike.images;
@@ -179,7 +182,7 @@ const MotorcycleDetails = () => {
         }
 
         return [];
-    }, [bike]);
+    }, [bike, selectedVariant]);
 
     // =====================================================
     // IMAGE NAVIGATION
@@ -264,6 +267,8 @@ const MotorcycleDetails = () => {
     }
 
     const currentImage = bikeImages[activeImage];
+    const variantSpecs = selectedVariant ? { ...bike, ...selectedVariant } : bike;
+    const detailDescription = selectedVariant?.description || bike.description;
 
     return (
         <div className="min-h-screen bg-[#070707] text-white">
@@ -602,7 +607,11 @@ const MotorcycleDetails = () => {
                                             type="button"
                                             onClick={() => {
                                                 setSelectedVariant(v);
-                                                setSelectedCity("");
+                                                setActiveImage(0);
+                                                if (v.color) {
+                                                    const match = bikeColors.find((color) => color.name.toLowerCase() === v.color.toLowerCase());
+                                                    setSelectedColor(match || { name: v.color, hexCode: /^#[\da-f]{3,8}$/i.test(v.color) ? v.color : "#f97316", image: "" });
+                                                }
                                             }}
                                             className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
                                                 selectedVariant?._id === v._id
@@ -619,7 +628,8 @@ const MotorcycleDetails = () => {
                                                     )}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-semibold text-sm text-white">{v.variantName}</p>
+                                                    <p className="font-semibold text-sm text-white">{v.variantName}{v.modelYear ? ` · ${v.modelYear}` : ""}</p>
+                                                    {v.color && <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-400"><span className="h-2.5 w-2.5 rounded-full border border-white/20" style={{ backgroundColor: bikeColors.find((color) => color.name.toLowerCase() === v.color.toLowerCase())?.hexCode || (/^#[\da-f]{3,8}$/i.test(v.color) ? v.color : "#f97316") }} />{v.color}</p>}
                                                     {v.features && v.features.length > 0 && (
                                                         <p className="text-xs text-zinc-500 truncate max-w-[200px]">
                                                             {v.features.slice(0, 2).join(" • ")}
@@ -627,8 +637,9 @@ const MotorcycleDetails = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className="font-bold text-orange-400 whitespace-nowrap">
-                                                ₹{Number(v.exShowroomPrice).toLocaleString("en-IN")}
+                                            <span className="text-right">
+                                                <span className="block whitespace-nowrap font-bold text-orange-400">₹{Number(v.regionalPricing?.onRoadPrice || v.exShowroomPrice).toLocaleString("en-IN")}</span>
+                                                <span className={`block text-[10px] ${v.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>{v.regionalPricing?.label || "On-road estimate"}</span>
                                             </span>
                                         </button>
                                     ))}
@@ -637,18 +648,9 @@ const MotorcycleDetails = () => {
                         )}
 
                         {/* PRICE */}
-                        <div className="mt-7 sm:mt-8">
-                            <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider">
-                                Ex-showroom Price
-                            </p>
-                            <p className="text-3xl sm:text-4xl font-black mt-1 text-white">
-                                ₹{Number(exShowroom || 0).toLocaleString("en-IN")}
-                            </p>
-                            {selectedCityPrice && (
-                                <p className="mt-2 text-base sm:text-lg font-bold text-orange-400">
-                                    On-road ({selectedCity}): ₹{Number(onRoadPrice).toLocaleString("en-IN")}
-                                </p>
-                            )}
+                        <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:mt-8 sm:p-5">
+                            <p className="mb-2 text-xs uppercase tracking-wider text-gray-500">Pricing for {region.city}, {region.state}</p>
+                            <RegionalPriceSummary pricing={priceSummary} />
                         </div>
 
                         {/* BUY AT DEALERSHIP (OFFLINE PURCHASE ONLY) */}
@@ -749,7 +751,7 @@ const MotorcycleDetails = () => {
                                                             <span>{city}</span>
                                                             {cp && (
                                                                 <span className="text-xs text-gray-500">
-                                                                    ₹{Number(exShowroom + cp.roadTax + insurance).toLocaleString("en-IN")}
+                                                                    {cp ? "Configured locally" : "Estimated charges"}
                                                                 </span>
                                                             )}
                                                         </button>
@@ -763,9 +765,9 @@ const MotorcycleDetails = () => {
                         )}
 
                         {/* DESCRIPTION */}
-                        {bike.description && (
+                        {detailDescription && (
                             <p className="text-gray-400 leading-7 mt-6">
-                                {bike.description}
+                                {detailDescription}
                             </p>
                         )}
 
@@ -811,8 +813,8 @@ const MotorcycleDetails = () => {
                                     icon={<Gauge size={19} />}
                                     label="Engine"
                                     value={
-                                        bike.engine
-                                            ? `${bike.engine} CC`
+                                        variantSpecs.engine
+                                            ? `${variantSpecs.engine} CC`
                                             : "N/A"
                                     }
                                 />
@@ -822,8 +824,8 @@ const MotorcycleDetails = () => {
                                 icon={<Zap size={19} />}
                                 label="Power"
                                 value={
-                                    bike.power
-                                        ? `${bike.power} HP`
+                                    variantSpecs.power
+                                        ? `${variantSpecs.power} HP`
                                         : "N/A"
                                 }
                             />
@@ -832,8 +834,8 @@ const MotorcycleDetails = () => {
                                 icon={<Zap size={19} />}
                                 label="Torque"
                                 value={
-                                    bike.torque
-                                        ? `${bike.torque} Nm`
+                                    variantSpecs.torque
+                                        ? `${variantSpecs.torque} Nm`
                                         : "N/A"
                                 }
                             />
@@ -842,8 +844,8 @@ const MotorcycleDetails = () => {
                                 icon={<Gauge size={19} />}
                                 label="Mileage"
                                 value={
-                                    bike.mileage
-                                        ? `${bike.mileage} km/l`
+                                    variantSpecs.mileage
+                                        ? `${variantSpecs.mileage} km/l`
                                         : "N/A"
                                 }
                             />
@@ -851,14 +853,14 @@ const MotorcycleDetails = () => {
                             <SpecCard
                                 icon={<Fuel size={19} />}
                                 label="Fuel"
-                                value={bike.fuel || "N/A"}
+                                value={variantSpecs.fuel || "N/A"}
                             />
 
                             <SpecCard
                                 icon={<Settings2 size={19} />}
                                 label="Transmission"
                                 value={
-                                    bike.transmission || "N/A"
+                                    variantSpecs.transmission || "N/A"
                                 }
                             />
 
@@ -866,8 +868,8 @@ const MotorcycleDetails = () => {
                                 icon={<Weight size={19} />}
                                 label="Weight"
                                 value={
-                                    bike.weight
-                                        ? `${bike.weight} kg`
+                                    variantSpecs.weight
+                                        ? `${variantSpecs.weight} kg`
                                         : "N/A"
                                 }
                             />

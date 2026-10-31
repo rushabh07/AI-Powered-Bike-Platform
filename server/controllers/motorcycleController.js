@@ -1,6 +1,8 @@
 const Motorcycle = require("../models/Motorcycle");
 const Review = require("../models/Review");
+const DemoReview = require("../models/DemoReview");
 const mongoose = require("mongoose");
+const { calculateRegionalPricing, validateRegionalPrices } = require("../services/regionalPricingService");
 
 // Live approved-review aggregates keyed by motorcycle id string.
 // Single aggregation — used to enrich list/detail responses so
@@ -9,7 +11,7 @@ const fetchReviewSummaryMap = async (motorcycleIds) => {
     const objectIds = motorcycleIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
         .map((id) => new mongoose.Types.ObjectId(id));
     if (objectIds.length === 0) return {};
-    const rows = await Review.aggregate([
+    const [rows, demoRows] = await Promise.all([Review.aggregate([
         { $match: { motorcycle: { $in: objectIds }, status: "approved" } },
         {
             $group: {
@@ -23,15 +25,32 @@ const fetchReviewSummaryMap = async (motorcycleIds) => {
                 d5: { $sum: { $cond: [{ $eq: ["$rating", 5] }, 1, 0] } },
             },
         },
-    ]);
+    ]), DemoReview.aggregate([
+        { $match: { motorcycle: { $in: objectIds } } },
+        {
+            $group: {
+                _id: "$motorcycle",
+                average: { $avg: "$rating" },
+                count: { $sum: 1 },
+                d1: { $sum: { $cond: [{ $eq: ["$rating", 1] }, 1, 0] } },
+                d2: { $sum: { $cond: [{ $eq: ["$rating", 2] }, 1, 0] } },
+                d3: { $sum: { $cond: [{ $eq: ["$rating", 3] }, 1, 0] } },
+                d4: { $sum: { $cond: [{ $eq: ["$rating", 4] }, 1, 0] } },
+                d5: { $sum: { $cond: [{ $eq: ["$rating", 5] }, 1, 0] } },
+            },
+        },
+    ])]);
     const map = {};
-    for (const row of rows) {
-        map[String(row._id)] = {
-            averageRating: Math.round(row.average * 10) / 10,
-            totalReviews: row.count,
-            distribution: { 1: row.d1, 2: row.d2, 3: row.d3, 4: row.d4, 5: row.d5 },
-        };
+    for (const row of [...rows, ...demoRows]) {
+        const key = String(row._id);
+        const current = map[key] || { ratingSum: 0, totalReviews: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+        current.ratingSum += row.average * row.count;
+        current.totalReviews += row.count;
+        for (let star = 1; star <= 5; star += 1) current.distribution[star] += row[`d${star}`] || 0;
+        current.averageRating = Math.round((current.ratingSum / current.totalReviews) * 10) / 10;
+        map[key] = current;
     }
+    for (const summary of Object.values(map)) delete summary.ratingSum;
     return map;
 };
 
@@ -204,9 +223,12 @@ const getMotorcycles = async (req, res) => {
         } catch (e) {
             console.error("Review summary enrichment error:", e.message);
         }
+        const state = String(req.query.state || "Maharashtra");
+        const city = String(req.query.city || "Pune");
         const enriched = motorcycles.map((m) => ({
             ...m,
             reviewSummary: summaryMap[String(m._id)] || { averageRating: 0, totalReviews: 0 },
+            regionalPricing: calculateRegionalPricing({ exShowroomPrice: m.exShowroomPrice || m.price, cityPrices: m.cityPrices, state, city }),
         }));
 
         res.status(200).json({
@@ -258,9 +280,14 @@ const getMotorcycleById = async (req, res) => {
             console.error("Review summary enrichment error:", e.message);
         }
 
+        const state = String(req.query.state || "Maharashtra");
+        const city = String(req.query.city || "Pune");
         res.status(200).json({
             success: true,
-            motorcycle,
+            motorcycle: {
+                ...motorcycle.toObject(),
+                regionalPricing: calculateRegionalPricing({ exShowroomPrice: motorcycle.exShowroomPrice || motorcycle.price, cityPrices: motorcycle.cityPrices, state, city }),
+            },
             reviewSummary
         });
 
@@ -274,6 +301,25 @@ const getMotorcycleById = async (req, res) => {
     }
 };
 
+const updateMotorcycleRegionalPricing = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: "Invalid motorcycle ID." });
+        const error = validateRegionalPrices(req.body.cityPrices);
+        if (error) return res.status(400).json({ success: false, message: error });
+        const motorcycle = await Motorcycle.findByIdAndUpdate(
+            id,
+            { $set: { cityPrices: req.body.cityPrices } },
+            { new: true, runValidators: true }
+        ).lean();
+        if (!motorcycle) return res.status(404).json({ success: false, message: "Motorcycle not found." });
+        return res.status(200).json({ success: true, message: "Regional pricing saved.", cityPrices: motorcycle.cityPrices });
+    } catch (error) {
+        console.error("Update regional pricing error:", error.message);
+        return res.status(500).json({ success: false, message: "Could not save regional pricing." });
+    }
+};
+
 
 // =====================================================
 // CREATE MOTORCYCLE
@@ -281,6 +327,13 @@ const getMotorcycleById = async (req, res) => {
 // =====================================================
 const createMotorcycle = async (req, res) => {
     try {
+        if (req.body.cityPrices !== undefined && req.user?.role !== "admin") {
+            return res.status(403).json({ success: false, message: "Only admins can set regional pricing." });
+        }
+        if (req.body.cityPrices !== undefined) {
+            const pricingError = validateRegionalPrices(req.body.cityPrices);
+            if (pricingError) return res.status(400).json({ success: false, message: pricingError });
+        }
         const {
             name,
             brand,
@@ -346,25 +399,10 @@ const createMotorcycle = async (req, res) => {
         // =====================================================
         // CREATE MOTORCYCLE
         // =====================================================
-        // Auto-seed city road taxes so every new bike gets a city
-        // selector automatically, even if admin skips pricing.
+        // Keep regional prices admin-configured. Missing city entries use
+        // the clearly labeled estimate in regionalPricingService.
         const basePrice = Number(price) || 0;
-        const DEFAULT_CITY_TAXES = {
-            Mumbai: 0.12,
-            Pune: 0.09,
-            Delhi: 0.15,
-            Bangalore: 0.11,
-            Chennai: 0.10,
-            Hyderabad: 0.08,
-            Kolkata: 0.13,
-            Ahmedabad: 0.07,
-        };
-        const initialCityPrices = Array.isArray(req.body.cityPrices) && req.body.cityPrices.length > 0
-            ? req.body.cityPrices
-            : Object.entries(DEFAULT_CITY_TAXES).map(([city, mult]) => ({
-                city,
-                roadTax: Math.round(basePrice * mult),
-            }));
+        const initialCityPrices = Array.isArray(req.body.cityPrices) ? req.body.cityPrices : [];
 
 
         const motorcycle = await Motorcycle.create({
@@ -424,6 +462,14 @@ const createMotorcycle = async (req, res) => {
 const updateMotorcycle = async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (req.body.cityPrices !== undefined && req.user?.role !== "admin") {
+            return res.status(403).json({ success: false, message: "Only admins can change regional pricing." });
+        }
+        if (req.body.cityPrices !== undefined) {
+            const pricingError = validateRegionalPrices(req.body.cityPrices);
+            if (pricingError) return res.status(400).json({ success: false, message: pricingError });
+        }
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
@@ -577,6 +623,7 @@ module.exports = {
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,
+    updateMotorcycleRegionalPricing,
     deleteMotorcycle,
     updateMotorcycleColors,
 };

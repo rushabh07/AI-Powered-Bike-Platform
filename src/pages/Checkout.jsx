@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
+import { useRegion } from "../context/RegionContext";
 import {
     ApiError,
     getMotorcycle,
@@ -29,6 +30,7 @@ const Checkout = () => {
     const { id } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
+    const { region } = useRegion();
 
     const [bike, setBike] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ const Checkout = () => {
         (async () => {
             setLoading(true);
             try {
-                const b = await getMotorcycle(id);
+                const b = await getMotorcycle(id, region);
                 setBike(b);
 
                 // Auto-pick first color if none supplied
@@ -93,7 +95,7 @@ const Checkout = () => {
                 setLoading(false);
             }
         })();
-    }, [id, navigate, location.state]);
+    }, [id, navigate, location.state, region]);
 
     // Fetch dealerships when city changes
     useEffect(() => {
@@ -130,14 +132,17 @@ const Checkout = () => {
     const pricePreview = useMemo(() => {
         if (!bike) return null;
         const exShowroom = Number(bike.exShowroomPrice || bike.price || 0);
+        const pricingCity = city || region.city;
         const cityPrice = (bike.cityPrices || []).find(
-            (cp) => cp.city.toLowerCase() === String(city || "").trim().toLowerCase()
+            (cp) => cp.city.toLowerCase() === String(pricingCity || "").trim().toLowerCase()
+                && (!cp.state || !region.state || cp.state.toLowerCase() === region.state.toLowerCase())
         );
         const roadTax = cityPrice ? cityPrice.roadTax : Math.round(exShowroom * 0.1);
-        const insurance = Math.round(exShowroom * 0.03);
-        const total = exShowroom + roadTax + insurance;
-        return { exShowroom, roadTax, insurance, total, hasCityPrice: !!cityPrice };
-    }, [bike, city]);
+        const insurance = cityPrice?.insuranceAmount ?? Math.round(exShowroom * 0.03);
+        const otherCharges = cityPrice?.otherCharges || 0;
+        const total = exShowroom + roadTax + insurance + otherCharges;
+        return { exShowroom, roadTax, insurance, otherCharges, total, hasCityPrice: !!cityPrice, pricingCity };
+    }, [bike, city, region]);
 
     const handleSubmitRequest = async () => {
         setError("");
@@ -614,17 +619,26 @@ const Checkout = () => {
                                         <span className="font-semibold">{inr(pricePreview?.exShowroom)}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-zinc-400">Road Tax (RTO)</span>
+                                        <span className="text-zinc-400">RTO / Registration</span>
                                         <span className="font-semibold text-zinc-300">
                                             {pricePreview?.hasCityPrice ? inr(pricePreview.roadTax) : "Calculated per city"}
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-zinc-400">Estimated Insurance</span>
+                                        <span className="text-zinc-400">Insurance</span>
                                         <span className="font-semibold text-zinc-300">
                                             {inr(pricePreview?.insurance)}
                                         </span>
                                     </div>
+                                    {pricePreview?.otherCharges > 0 && (
+                                        <div className="flex justify-between">
+                                            <span className="text-zinc-400">Other Charges</span>
+                                            <span className="font-semibold text-zinc-300">{inr(pricePreview.otherCharges)}</span>
+                                        </div>
+                                    )}
+                                    <p className="text-[11px] text-zinc-500">
+                                        {pricePreview?.hasCityPrice ? `Regional estimate for ${pricePreview.pricingCity}` : `Fallback estimate for ${pricePreview?.pricingCity}`}
+                                    </p>
                                 </div>
 
                                 <div className="border-t border-white/10 pt-3 flex justify-between items-baseline">

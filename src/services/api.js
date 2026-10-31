@@ -168,9 +168,11 @@ export const deleteComparison = (id) =>
 // Motorcycles API (existing backend)
 // ==========================================
 
-export const searchMotorcycles = async (query) => {
+export const searchMotorcycles = async (query, region = {}) => {
     const params = new URLSearchParams();
     if (query && query.trim()) params.set("search", query.trim());
+    if (region.state) params.set("state", region.state);
+    if (region.city) params.set("city", region.city);
     const response = await fetch(
         `${API_BASE}/motorcycles?${params.toString()}`
     );
@@ -181,10 +183,14 @@ export const searchMotorcycles = async (query) => {
     return data.motorcycles || [];
 };
 
-export const getAllMotorcycles = async () => searchMotorcycles("");
+export const getAllMotorcycles = async (region = {}) => searchMotorcycles("", region);
 
-export const getMotorcycle = async (id) => {
-    const response = await fetch(`${API_BASE}/motorcycles/${id}`);
+export const getMotorcycle = async (id, region = {}) => {
+    const params = new URLSearchParams();
+    if (region.state) params.set("state", region.state);
+    if (region.city) params.set("city", region.city);
+    const query = params.toString();
+    const response = await fetch(`${API_BASE}/motorcycles/${id}${query ? `?${query}` : ""}`);
     if (!response.ok) {
         throw new Error("Motorcycle not found");
     }
@@ -351,13 +357,35 @@ export const exportAdminSubscriptionsCsv = async (params = {}) => {
     document.body.removeChild(a);
 };
 
-export const getMotorcycleVariants = async (motorcycleId) => {
-    const response = await fetch(`${API_BASE}/variants/motorcycles/${motorcycleId}`);
+export const getMotorcycleVariants = async (motorcycleId, region = {}) => {
+    const params = new URLSearchParams();
+    if (region.state) params.set("state", region.state);
+    if (region.city) params.set("city", region.city);
+    const query = params.toString();
+    const response = await fetch(`${API_BASE}/variants/motorcycles/${motorcycleId}${query ? `?${query}` : ""}`);
     if (!response.ok) {
         throw new Error("Failed to fetch variants");
     }
     return response.json();
 };
+
+export const updateMotorcycleRegionalPricing = (motorcycleId, cityPrices) =>
+    apiFetch(`/motorcycles/${motorcycleId}/regional-pricing`, {
+        method: "PUT",
+        body: JSON.stringify({ cityPrices }),
+    });
+
+export const getAdminMotorcycleVariants = (motorcycleId) =>
+    apiFetch(`/variants/admin/motorcycles/${motorcycleId}`);
+
+export const createMotorcycleVariant = (payload) =>
+    apiFetch("/variants", { method: "POST", body: JSON.stringify(payload) });
+
+export const updateMotorcycleVariant = (variantId, payload) =>
+    apiFetch(`/variants/${variantId}`, { method: "PUT", body: JSON.stringify(payload) });
+
+export const deleteMotorcycleVariant = (variantId) =>
+    apiFetch(`/variants/${variantId}`, { method: "DELETE" });
 
 // Bike Enquiries
 export const createBikeEnquiry = (payload) =>

@@ -24,6 +24,7 @@ import Navbar from "../components/Navbar";
 import AdvertisementSlider from "../components/AdvertisementSlider";
 import LatestUpdatesSection from "../components/LatestUpdatesSection";
 import { useRole } from "../context/RoleContext";
+import { useRegion } from "../context/RegionContext";
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -146,12 +147,13 @@ const Button = ({
 // mileage, images gallery array, optional match score.
 // ==============================
 const RecommendationCard = ({ bike, navigate }) => {
+    const { region } = useRegion();
     const isEV = String(bike.category || "").toLowerCase() === "electric";
 
-    const priceText =
-        typeof bike.price === "number"
-            ? `₹${(bike.price / 100000).toFixed(2)} Lakh`
-            : bike.price;
+    const displayPrice = bike.regionalPricing?.onRoadPrice ?? bike.price;
+    const priceText = typeof displayPrice === "number"
+        ? `₹${(displayPrice / 100000).toFixed(2)} Lakh`
+        : displayPrice;
 
     const engineText = isEV
         ? bike.range ? `${bike.range} km range` : "Electric"
@@ -227,6 +229,9 @@ const RecommendationCard = ({ bike, navigate }) => {
             <p className="text-2xl font-black mt-5">
                 {priceText}
             </p>
+            <p className={`mt-0.5 text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
+                {bike.regionalPricing?.label || `Estimated in ${region.city}`}
+            </p>
 
             <div className="grid grid-cols-2 gap-3 mt-5">
                 <div className="bg-[#0d0d0d] rounded-lg p-3">
@@ -290,15 +295,17 @@ const RecommendationCard = ({ bike, navigate }) => {
 function Homepage() {
     const navigate = useNavigate();
     const { can } = useRole();
+    const { region } = useRegion();
 
     // CMS-driven homepage configuration (published)
     const [homeConfig, setHomeConfig] = useState(null);
     useEffect(() => {
-        fetch("http://localhost:5000/api/homepage")
+        const params = new URLSearchParams(region);
+        fetch(`http://localhost:5000/api/homepage?${params.toString()}`)
             .then((res) => (res.ok ? res.json() : { configured: false, sections: [] }))
             .then((data) => setHomeConfig(data))
             .catch(() => setHomeConfig({ configured: false, sections: [] }));
-    }, []);
+    }, [region.state, region.city]);
 
     // Config helpers: section(key) returns the published section or null
     const section = (key) => {
@@ -327,7 +334,7 @@ function Homepage() {
         const loadSections = async () => {
             try {
                 const response = await fetch(
-                    `${BIKES_API}?sort=rating`
+                    `${BIKES_API}?sort=rating&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}`
                 );
                 if (!response.ok) throw new Error("Failed to load motorcycles");
                 const data = await response.json();
@@ -358,7 +365,7 @@ function Homepage() {
             }
         };
         loadSections();
-    }, []);
+    }, [region.state, region.city]);
 
     // ==============================
     // NAVIGATION
@@ -385,9 +392,7 @@ function Homepage() {
 
             try {
                 const response = await fetch(
-                    `http://localhost:5000/api/motorcycles?search=${encodeURIComponent(
-                        query
-                    )}`
+                    `http://localhost:5000/api/motorcycles?search=${encodeURIComponent(query)}&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}`
                 );
 
                 if (!response.ok) {
@@ -413,7 +418,7 @@ function Homepage() {
         const timer = setTimeout(searchDatabase, 300);
 
         return () => clearTimeout(timer);
-    }, [searchQuery]);
+    }, [searchQuery, region.state, region.city]);
 
     // ==============================
     // SEARCH BUTTON
@@ -616,14 +621,10 @@ function Homepage() {
                                                                 </p>
 
                                                                 <p className="text-xs text-orange-500 mt-1 font-semibold">
-                                                                    ₹
-                                                                    {(
-                                                                        bike.price /
-                                                                        100000
-                                                                    ).toFixed(
-                                                                        2
-                                                                    )}{" "}
-                                                                    Lakh
+                                                                    ₹{((bike.regionalPricing?.onRoadPrice ?? bike.price) / 100000).toFixed(2)} Lakh on-road
+                                                                </p>
+                                                                <p className={`text-[10px] ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
+                                                                    {bike.regionalPricing?.label || `Estimated in ${region.city}`}
                                                                 </p>
                                                             </div>
 

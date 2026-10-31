@@ -5,6 +5,7 @@ const Dealership = require("../models/Dealership");
 const { createNotification } = require("./notificationController");
 const { createReferral } = require("../services/referralService");
 const { notifyNewReferral } = require("../services/commissionNotificationService");
+const { calculateRegionalPricing } = require("../services/regionalPricingService");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const OFFLINE_METHODS = ["cash", "card", "upi", "bank_transfer"];
@@ -25,6 +26,7 @@ const shapeOrder = (o) => ({
     unitPrice: o.unitPrice,
     roadTax: o.roadTax,
     insuranceAmount: o.insuranceAmount,
+    otherCharges: o.otherCharges || 0,
     taxAmount: o.taxAmount,
     totalAmount: o.totalAmount,
     paymentMethod: o.paymentMethod || "offline",
@@ -71,18 +73,22 @@ const priceFor = async (motorcycleId, city) => {
     if (!bike) return { error: "Motorcycle not found." };
     const exShowroom = bike.exShowroomPrice || bike.price || 0;
     if (!city || !String(city).trim()) return { error: "City is required." };
-    const entry = (bike.cityPrices || []).find(
-        (cp) => cp.city.toLowerCase() === String(city).trim().toLowerCase()
-    );
-    if (!entry) return { error: `On-road pricing not available for ${city}.` };
-    const roadTax = entry.roadTax || 0;
-    const insurance = Math.round(exShowroom * 0.03);
+    const regional = calculateRegionalPricing({
+        exShowroomPrice: exShowroom,
+        cityPrices: bike.cityPrices || [],
+        city,
+        state: "",
+    });
+    const roadTax = regional.rtoCharges;
+    const insurance = regional.insuranceCharges;
+    const otherCharges = regional.otherCharges;
     return {
         bike,
         exShowroom,
         roadTax,
         insurance,
-        total: exShowroom + roadTax + insurance,
+        otherCharges,
+        total: exShowroom + roadTax + insurance + otherCharges,
     };
 };
 
@@ -280,6 +286,7 @@ const createOfflineOrder = async (req, res) => {
             unitPrice: priced.exShowroom,
             roadTax: priced.roadTax,
             insuranceAmount: priced.insurance,
+            otherCharges: priced.otherCharges,
             taxAmount: priced.roadTax,
             totalAmount: priced.total,
             paymentMethod: "offline",

@@ -3,8 +3,10 @@ const HomepageConfig = require("../models/HomepageConfig");
 const Motorcycle = require("../models/Motorcycle");
 const Advertisement = require("../models/Advertisement");
 const Review = require("../models/Review");
+const DemoReview = require("../models/DemoReview");
 const Update = require("../models/Update");
 const Dealership = require("../models/Dealership");
+const { calculateRegionalPricing } = require("../services/regionalPricingService");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -34,17 +36,28 @@ const shapeSection = (s) => ({
 
 // ---------- content resolvers (always from MongoDB) ----------
 
-const resolveMotorcycles = async (ids, limit) => {
+const resolveMotorcycles = async (ids, limit, region) => {
     const valid = (ids || []).filter(isValidId).map((id) => new mongoose.Types.ObjectId(id));
     let query = valid.length > 0 ? { _id: { $in: valid } } : {};
     const bikes = await Motorcycle.find(query).lean();
     // attach ratings from reviews
     const bikeIds = bikes.map((b) => b._id);
-    const reviewAgg = await Review.aggregate([
+    const [reviewAgg, demoAgg] = await Promise.all([Review.aggregate([
         { $match: { motorcycle: { $in: bikeIds }, $or: [{ status: null }, { status: "approved" }] } },
         { $group: { _id: "$motorcycle", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
-    ]);
-    const ratingMap = new Map(reviewAgg.map((r) => [String(r._id), { avg: r.avg, count: r.count }]));
+    ]), DemoReview.aggregate([
+        { $match: { motorcycle: { $in: bikeIds } } },
+        { $group: { _id: "$motorcycle", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ])]);
+    const ratingMap = new Map();
+    for (const row of [...reviewAgg, ...demoAgg]) {
+        const key = String(row._id);
+        const current = ratingMap.get(key) || { sum: 0, count: 0 };
+        current.sum += row.avg * row.count;
+        current.count += row.count;
+        current.avg = current.sum / current.count;
+        ratingMap.set(key, current);
+    }
     return bikes.slice(0, limit || bikes.length).map((b) => ({
         _id: b._id,
         brand: b.brand,
@@ -53,8 +66,9 @@ const resolveMotorcycles = async (ids, limit) => {
         price: b.price || b.exShowroomPrice || 0,
         engine: b.engine || "",
         power: b.power || "",
-        rating: ratingMap.get(String(b._id))?.avg || 0,
+        rating: Math.round((ratingMap.get(String(b._id))?.avg || 0) * 10) / 10,
         ratingCount: ratingMap.get(String(b._id))?.count || 0,
+        regionalPricing: calculateRegionalPricing({ exShowroomPrice: b.exShowroomPrice || b.price, cityPrices: b.cityPrices, ...region }),
     }));
 };
 
@@ -117,7 +131,7 @@ const resolveDealerships = async (ids, limit) => {
 const approvedReviewMatch = { $or: [{ status: null }, { status: "approved" }] };
 
 const resolveStats = async () => {
-    const [totalBikes, brandAgg, activeDealers, reviewAgg, publishedUpdates] = await Promise.all([
+    const [totalBikes, brandAgg, activeDealers, reviewAgg, demoAgg, publishedUpdates] = await Promise.all([
         Motorcycle.countDocuments({}),
         Motorcycle.distinct("brand"),
         Dealership.countDocuments({ isActive: true }),
@@ -125,27 +139,44 @@ const resolveStats = async () => {
             { $match: approvedReviewMatch },
             { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
         ]),
+        DemoReview.aggregate([
+            { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+        ]),
         Update.countDocuments({ status: "published" }),
     ]);
-    const review = reviewAgg[0] || { avg: 0, count: 0 };
+    const genuine = reviewAgg[0] || { avg: 0, count: 0 };
+    const demo = demoAgg[0] || { avg: 0, count: 0 };
+    const reviewCount = genuine.count + demo.count;
+    const reviewAverage = reviewCount ? ((genuine.avg * genuine.count) + (demo.avg * demo.count)) / reviewCount : 0;
     return {
         totalMotorcycles: totalBikes,
         totalBrands: brandAgg.length,
         activeDealerships: activeDealers,
-        averageRating: Math.round(review.avg * 10) / 10,
-        totalReviews: review.count,
+        averageRating: Math.round(reviewAverage * 10) / 10,
+        totalReviews: reviewCount,
         publishedUpdates,
     };
 };
 
-const resolveTopRated = async (limit = 6) => {
-    const agg = await Review.aggregate([
+const resolveTopRated = async (limit = 6, region) => {
+    const [genuineRows, demoRows] = await Promise.all([Review.aggregate([
         { $match: approvedReviewMatch },
         { $group: { _id: "$motorcycle", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
-        { $match: { count: { $gte: 1 } } },
-        { $sort: { avg: -1 } },
-        { $limit: limit || 6 },
-    ]);
+    ]), DemoReview.aggregate([
+        { $group: { _id: "$motorcycle", avg: { $avg: "$rating" }, count: { $sum: 1 } } },
+    ])]);
+    const byBike = new Map();
+    for (const row of [...genuineRows, ...demoRows]) {
+        const key = String(row._id);
+        const current = byBike.get(key) || { _id: row._id, sum: 0, count: 0 };
+        current.sum += row.avg * row.count;
+        current.count += row.count;
+        current.avg = current.sum / current.count;
+        byBike.set(key, current);
+    }
+    const agg = [...byBike.values()]
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, limit || 6);
     const bikeIds = agg.map((r) => r._id);
     const bikes = await Motorcycle.find({ _id: { $in: bikeIds } }).lean();
     const bikeMap = new Map(bikes.map((b) => [String(b._id), b]));
@@ -161,6 +192,7 @@ const resolveTopRated = async (limit = 6) => {
                 price: b.price || b.exShowroomPrice || 0,
                 rating: Math.round(r.avg * 10) / 10,
                 ratingCount: r.count,
+                regionalPricing: calculateRegionalPricing({ exShowroomPrice: b.exShowroomPrice || b.price, cityPrices: b.cityPrices, ...region }),
             };
         })
         .filter(Boolean);
@@ -212,7 +244,7 @@ const resolveCategories = async (limit = 10) => {
 
 // ---------- section resolution ----------
 
-const resolveSectionContent = async (section) => {
+const resolveSectionContent = async (section, region) => {
     const key = section.sectionKey;
     const limit = section.itemLimit || 6;
     switch (key) {
@@ -229,11 +261,11 @@ const resolveSectionContent = async (section) => {
         case "promotions":
             return { advertisements: await resolveAds(section.selectedItems, limit) };
         case "featuredMotorcycles":
-            return { motorcycles: await resolveMotorcycles(section.selectedItems, limit) };
+            return { motorcycles: await resolveMotorcycles(section.selectedItems, limit, region) };
         case "updates":
             return { updates: await resolveUpdates(section.selectedItems, limit) };
         case "topRated":
-            return { motorcycles: await resolveTopRated(limit) };
+            return { motorcycles: await resolveTopRated(limit, region) };
         case "latestReviews":
             return { reviews: await resolveLatestReviews(limit) };
         case "featuredDealerships":
@@ -270,10 +302,11 @@ const getPublicHomepage = async (req, res) => {
             return res.status(200).json({ success: true, configured: false, sections: [] });
         }
 
+        const region = { state: req.query.state || "Maharashtra", city: req.query.city || "Pune" };
         const resolved = [];
         for (const section of sections) {
             try {
-                const content = await resolveSectionContent(section);
+                const content = await resolveSectionContent(section, region);
                 resolved.push({ ...shapeSection(section), content });
             } catch (err) {
                 console.error(`Homepage section ${section.sectionKey} error:`, err.message);

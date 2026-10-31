@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Review = require("../models/Review");
+const DemoReview = require("../models/DemoReview");
 const Motorcycle = require("../models/Motorcycle");
 const BikeEnquiry = require("../models/BikeEnquiry");
 
@@ -193,6 +194,8 @@ const shapeReview = (r, currentUserId = null) => {
         comment: r.comment,
         isExpert: !!r.isExpert,
         verifiedPurchase: !!r.verifiedPurchase,
+        isDemo: r.isDemo === true,
+        reviewerName: r.isDemo ? r.reviewerName : "",
         status: r.status || "approved",
         helpfulCount: r.helpfulCount || 0,
         votedHelpful: currentUserId ? helpfulBy.includes(String(currentUserId)) : false,
@@ -204,11 +207,11 @@ const shapeReview = (r, currentUserId = null) => {
         user: r.user
             ? {
                 _id: r.user._id,
-                name: r.user.name,
+                name: r.user.name || r.reviewerName || "Anonymous",
                 email: r.user.email,
                 profileImage: r.user.profileImage || "",
             }
-            : null,
+            : r.isDemo ? { _id: null, name: r.reviewerName || "Demo reviewer", email: "", profileImage: "" } : null,
         motorcycle: r.motorcycle
             ? {
                 _id: r.motorcycle._id,
@@ -290,22 +293,29 @@ const getRatingSummary = async (motorcycleId) => {
         },
     ];
 
-    const results = await Review.aggregate(pipeline);
+    const [results, demoRows] = await Promise.all([
+        Review.aggregate(pipeline),
+        DemoReview.find({ motorcycle: motorcycleId }).select("rating category").lean(),
+    ]);
     const data = results[0] || { overall: [], stars: [], expert: [], user: [], byCategory: [] };
     const summary = emptySummary();
 
-    const total = data.overall.length > 0 ? data.overall[0].count : 0;
-    const avg = data.overall.length > 0 ? data.overall[0].average : 0;
+    const genuineCount = data.overall.length > 0 ? data.overall[0].count : 0;
+    const genuineAverage = data.overall.length > 0 ? data.overall[0].average : 0;
+    const demoRatingSum = demoRows.reduce((sum, row) => sum + Number(row.rating || 0), 0);
+    const total = genuineCount + demoRows.length;
+    const avg = total ? ((genuineAverage * genuineCount) + demoRatingSum) / total : 0;
     summary.totalReviews = total;
     summary.totalCount = total;
     summary.averageRating = total > 0 ? Math.round(avg * 10) / 10 : 0;
     summary.overallRating = summary.averageRating;
 
-    for (const row of data.stars) {
-        const star = Number(row._id);
+    const stars = new Map(data.stars.map((row) => [Number(row._id), row.count]));
+    for (const row of demoRows) stars.set(Number(row.rating), (stars.get(Number(row.rating)) || 0) + 1);
+    for (const [star, count] of stars) {
         if (star >= 1 && star <= 5) {
-            summary.distribution[star] = row.count;
-            summary.percentages[star] = total > 0 ? Math.round((row.count / total) * 100) : 0;
+            summary.distribution[star] = count;
+            summary.percentages[star] = total > 0 ? Math.round((count / total) * 100) : 0;
         }
     }
 
@@ -313,15 +323,19 @@ const getRatingSummary = async (motorcycleId) => {
         summary.expertRating = Math.round(data.expert[0].average * 10) / 10;
         summary.expertCount = data.expert[0].count;
     }
-    if (data.user.length > 0) {
-        summary.userRating = Math.round(data.user[0].average * 10) / 10;
-        summary.userCount = data.user[0].count;
-    }
+    const genuineUserCount = data.user[0]?.count || 0;
+    const genuineUserSum = (data.user[0]?.average || 0) * genuineUserCount;
+    summary.userCount = genuineUserCount + demoRows.length;
+    summary.userRating = summary.userCount
+        ? Math.round(((genuineUserSum + demoRatingSum) / summary.userCount) * 10) / 10
+        : 0;
     for (const cat of CATEGORIES) {
         const found = data.byCategory.find((c) => c._id === cat);
-        summary.categories[cat] = found
-            ? { average: Math.round(found.average * 10) / 10, count: found.count }
-            : { average: 0, count: 0 };
+        const demoInCategory = demoRows.filter((row) => row.category === cat);
+        const count = (found?.count || 0) + demoInCategory.length;
+        const ratingSum = ((found?.average || 0) * (found?.count || 0)) +
+            demoInCategory.reduce((sum, row) => sum + Number(row.rating || 0), 0);
+        summary.categories[cat] = { average: count ? Math.round((ratingSum / count) * 10) / 10 : 0, count };
     }
     return summary;
 };
@@ -350,6 +364,50 @@ const syncMotorcycleRating = async (motorcycleId) => {
 // GET public reviews for ONE motorcycle.
 // Only approved reviews. Paginated. Never leaks other bikes.
 // ============================================
+const combinedReviewPipeline = ({ motorcycleId, rating = null, sort, skip = null, limit = null }) => {
+    const motorcycleObjectId = new mongoose.Types.ObjectId(motorcycleId);
+    const ratingFilter = rating ? { rating: Number(rating) } : {};
+    const pipeline = [
+        { $match: { motorcycle: motorcycleObjectId, status: "approved", ...ratingFilter } },
+        {
+            $project: {
+                _id: 1, motorcycle: 1, user: 1, title: 1, category: 1, rating: 1, comment: 1,
+                createdAt: 1, updatedAt: 1, isExpert: 1, verifiedPurchase: 1, status: 1,
+                helpfulCount: 1, dealerResponse: 1,
+                isDemo: { $literal: false }, reviewerName: { $literal: "" },
+            },
+        },
+        {
+            $unionWith: {
+                coll: "demoreviews",
+                pipeline: [
+                    { $match: { motorcycle: motorcycleObjectId, ...ratingFilter } },
+                    {
+                        $project: {
+                            _id: 1, motorcycle: 1, title: 1, category: 1, rating: 1, comment: 1,
+                            createdAt: "$reviewDate", updatedAt: "$reviewDate",
+                            user: { $literal: null }, isExpert: { $literal: false },
+                            verifiedPurchase: { $literal: false }, status: { $literal: "approved" },
+                            helpfulCount: { $literal: 0 }, dealerResponse: { $literal: null },
+                            isDemo: { $literal: true }, reviewerName: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        { $sort: { ...sort, _id: 1 } },
+    ];
+    if (skip !== null && limit !== null) {
+        pipeline.push({ $facet: { rows: [{ $skip: skip }, { $limit: limit }], count: [{ $count: "total" }] } });
+    }
+    return pipeline;
+};
+
+const populatePublicReviewRows = async (rows) => Review.populate(rows, [
+    { path: "user", select: "name email profileImage" },
+    { path: "motorcycle", select: "name brand image images" },
+]);
+
 const getMotorcycleReviews = async (req, res) => {
     try {
         const motorcycleId = req.params.motorcycleId || req.params.id;
@@ -375,31 +433,27 @@ const getMotorcycleReviews = async (req, res) => {
         };
         const sort = sortMap[sortKey] || sortMap.newest;
 
-        const filter = { motorcycle: motorcycleId, status: "approved" };
+        let rating = null;
         if (req.query.rating && [1, 2, 3, 4, 5].includes(Number(req.query.rating))) {
-            filter.rating = Number(req.query.rating);
+            rating = Number(req.query.rating);
         }
 
-        const [reviews, total, summary] = await Promise.all([
-            Review.find(filter)
-                .populate({ path: "user", select: "name email profileImage" })
-                .populate({ path: "motorcycle", select: "name brand image images" })
-                .sort(sort)
-                .skip(skip)
-                .limit(limit)
-                .lean(),
-            Review.countDocuments(filter),
+        const [pageResult, summary] = await Promise.all([
+            Review.aggregate(combinedReviewPipeline({ motorcycleId, rating, sort, skip, limit })),
             getRatingSummary(motorcycleId),
         ]);
+        const facet = pageResult[0] || { rows: [], count: [] };
+        const reviews = await populatePublicReviewRows(facet.rows || []);
+        const total = facet.count?.[0]?.total || 0;
 
         const currentUserId = req.user ? req.user._id : null;
         const grouped = {};
         if (req.query.grouped === "true") {
-            const all = await Review.find({ motorcycle: motorcycleId, status: "approved" })
-                .populate({ path: "user", select: "name email profileImage" })
-                .populate({ path: "motorcycle", select: "name brand image images" })
-                .sort({ isExpert: -1, createdAt: -1 })
-                .lean();
+            const allRows = await Review.aggregate(combinedReviewPipeline({
+                motorcycleId,
+                sort: { isExpert: -1, createdAt: -1 },
+            }));
+            const all = await populatePublicReviewRows(allRows);
             for (const cat of CATEGORIES) {
                 grouped[cat] = all.filter((r) => r.category === cat).map((r) => shapeReview(r, currentUserId));
             }
@@ -461,7 +515,7 @@ const getBulkReviewSummaries = async (req, res) => {
             return res.status(200).json({ success: true, summaries: {} });
         }
         const objectIds = ids.map((id) => new mongoose.Types.ObjectId(id));
-        const rows = await Review.aggregate([
+        const [rows, demoRows] = await Promise.all([Review.aggregate([
             { $match: { motorcycle: { $in: objectIds }, status: "approved" } },
             {
                 $group: {
@@ -470,7 +524,16 @@ const getBulkReviewSummaries = async (req, res) => {
                     count: { $sum: 1 },
                 },
             },
-        ]);
+        ]), DemoReview.aggregate([
+            { $match: { motorcycle: { $in: objectIds } } },
+            {
+                $group: {
+                    _id: "$motorcycle",
+                    average: { $avg: "$rating" },
+                    count: { $sum: 1 },
+                },
+            },
+        ])]);
         const summaries = {};
         for (const id of ids) {
             summaries[id] = { averageRating: 0, totalReviews: 0 };
@@ -481,6 +544,13 @@ const getBulkReviewSummaries = async (req, res) => {
                 averageRating: Math.round(row.average * 10) / 10,
                 totalReviews: row.count,
             };
+        }
+        for (const row of demoRows) {
+            const key = String(row._id);
+            const current = summaries[key] || { averageRating: 0, totalReviews: 0 };
+            const count = current.totalReviews + row.count;
+            const average = ((current.averageRating * current.totalReviews) + (row.average * row.count)) / count;
+            summaries[key] = { averageRating: Math.round(average * 10) / 10, totalReviews: count };
         }
         return res.status(200).json({ success: true, summaries });
     } catch (error) {

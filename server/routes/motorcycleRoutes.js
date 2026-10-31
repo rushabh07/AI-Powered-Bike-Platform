@@ -5,6 +5,7 @@ const {
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,
+    updateMotorcycleRegionalPricing,
     deleteMotorcycle,
     updateMotorcycleColors,
 } = require("../controllers/motorcycleController");
@@ -42,6 +43,7 @@ router.post("/", protect, authorize("admin", "provider"), requirePermission("mot
 // PUT /api/motorcycles/:id
 // =====================================
 router.put("/:id", protect, authorize("admin", "provider"), requirePermission("motorcycles.manage"), updateMotorcycle);
+router.put("/:id/regional-pricing", protect, authorize("admin"), updateMotorcycleRegionalPricing);
 router.put("/:id/colors", protect, authorize("admin", "provider"), requirePermission("motorcycles.manage"), updateMotorcycleColors);
 
 

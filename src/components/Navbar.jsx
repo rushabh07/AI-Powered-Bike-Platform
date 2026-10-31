@@ -20,6 +20,7 @@ import {
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 import UserAvatar from "./UserAvatar";
+import RegionSelector from "./RegionSelector";
 import { useRole } from "../context/RoleContext";
 import { getSubscriptionStatus } from "../services/api";
 
@@ -238,7 +239,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
 
                     {/* ---------------------------------- Desktop navigation */}
                     <nav
-                        className="hidden min-w-0 flex-1 items-center justify-center gap-5 xl:flex xl:gap-7"
+                        className="hidden min-w-0 flex-1 items-center justify-between xl:flex xl:pr-5 2xl:pr-6"
                         aria-label="Primary"
                     >
                         {NAV_LINKS.map(({ label, path, icon: Icon, permission }) => {
@@ -293,6 +294,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
 
                     {/* --------------------------------------- Right controls */}
                     <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                        <div className="hidden xl:block"><RegionSelector /></div>
                         <ThemeToggle />
 
                         {/* Admin quick access */}
@@ -581,6 +583,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             </div>
                         )}
 
+                        <div className="mb-5 xl:hidden"><RegionSelector mobile /></div>
                         {/* Primary links */}
                         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
                             Browse

@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const cityPriceSchema = new mongoose.Schema(
     {
+        state: { type: String, default: "", trim: true },
         city: {
             type: String,
             required: true,
@@ -12,7 +13,9 @@ const cityPriceSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 0
-        }
+        },
+        insuranceAmount: { type: Number, default: null, min: 0 },
+        otherCharges: { type: Number, default: 0, min: 0 },
     },
     { _id: false }
 );
@@ -24,7 +27,6 @@ const motorcycleImageSchema = new mongoose.Schema(
             required: true,
             trim: true
         },
-
         label: {
             type: String,
             required: true,

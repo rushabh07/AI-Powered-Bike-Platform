@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
+import { useRegion } from "../context/RegionContext";
 import {
     Search,
     SlidersHorizontal,
@@ -32,6 +33,7 @@ const formatPrice = (price) =>
     `₹${(price / 100000).toFixed(2)} Lakh`;
 
 export default function Motorcycles() {
+    const { region } = useRegion();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
@@ -141,6 +143,8 @@ export default function Motorcycles() {
         if (sort !== "default") {
             params.set("sort", sort);
         }
+        params.set("state", region.state);
+        params.set("city", region.city);
 
         fetch(`${API}?${params.toString()}`)
             .then((res) => {
@@ -172,6 +176,8 @@ export default function Motorcycles() {
         maxPrice,
         minEngine,
         sort,
+        region.state,
+        region.city,
     ]);
 
     // =====================================
@@ -1117,13 +1123,14 @@ function BikeCard({
                 {/* PRICE */}
                 <div className="mt-5">
 
-                    <p className="text-xs text-zinc-600">
-                        Starting from
-                    </p>
-
+                    <p className="text-xs text-zinc-600">On-road price</p>
                     <p className="mt-1 text-xl font-black text-orange-500">
-                        {formatPrice(bike.price)}
+                        {formatPrice(bike.regionalPricing?.onRoadPrice ?? bike.price)}
                     </p>
+                    <p className={`mt-0.5 text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
+                        {bike.regionalPricing?.label || `Estimated in ${region.city}`}
+                    </p>
+                    <p className="mt-1 text-[10px] text-zinc-600">Ex-showroom {formatPrice(bike.regionalPricing?.exShowroomPrice ?? bike.price)}</p>
 
                 </div>
 

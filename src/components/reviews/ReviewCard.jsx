@@ -40,7 +40,7 @@ export const ReviewCard = ({
                     </div>
                     <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-white">
-                            {review.user?.name || "Anonymous"}
+                            {review.user?.name || review.reviewerName || "Anonymous"}
                         </p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <Stars value={review.rating} size={12} />
@@ -52,6 +52,14 @@ export const ReviewCard = ({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5">
+                    {review.isDemo && (
+                        <span
+                            className="rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-orange-300"
+                            title="Illustrative sample content, not a customer purchase review"
+                        >
+                            Demo Review
+                        </span>
+                    )}
                     {review.verifiedPurchase && (
                         <span
                             className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400"
@@ -99,7 +107,7 @@ export const ReviewCard = ({
             )}
 
             {/* Footer: helpful vote */}
-            <div className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3">
+            {!review.isDemo && <div className="mt-3 flex items-center gap-2 border-t border-white/5 pt-3">
                 <button
                     onClick={() => onHelpful(review)}
                     disabled={helpfulPending}
@@ -114,7 +122,7 @@ export const ReviewCard = ({
                     <ThumbsUp size={13} className={review.votedHelpful ? "fill-orange-500/20" : ""} />
                     Helpful{review.helpfulCount > 0 ? ` (${review.helpfulCount})` : ""}
                 </button>
-            </div>
+            </div>}
         </article>
     );
 };

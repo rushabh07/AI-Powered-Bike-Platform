@@ -10,8 +10,11 @@ const variantImageSchema = new mongoose.Schema(
 
 const variantCityPriceSchema = new mongoose.Schema(
     {
+        state: { type: String, default: "", trim: true },
         city: { type: String, required: true, trim: true },
         roadTax: { type: Number, required: true, min: 0 },
+        insuranceAmount: { type: Number, default: null, min: 0 },
+        otherCharges: { type: Number, default: 0, min: 0 },
     },
     { _id: false }
 );
@@ -27,12 +30,15 @@ const motorcycleVariantSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            maxlength: 100,
         },
         variantCode: {
             type: String,
             default: "",
             trim: true,
         },
+        modelYear: { type: Number, min: 1900, max: 2200, default: null },
+        color: { type: String, default: "", trim: true, maxlength: 80 },
         exShowroomPrice: {
             type: Number,
             required: true,
@@ -42,6 +48,7 @@ const motorcycleVariantSchema = new mongoose.Schema(
             type: [variantCityPriceSchema],
             default: [],
         },
+        onRoadPrice: { type: Number, default: null, min: 0 },
         engine: { type: Number, default: 0, min: 0 },
         power: { type: Number, default: 0, min: 0 },
         torque: { type: Number, default: null, min: 0 },
@@ -51,6 +58,7 @@ const motorcycleVariantSchema = new mongoose.Schema(
         weight: { type: Number, default: null, min: 0 },
         features: { type: [String], default: [] },
         images: { type: [variantImageSchema], default: [] },
+        description: { type: String, default: "", trim: true, maxlength: 2000 },
         isAvailable: { type: Boolean, default: true },
     },
     {

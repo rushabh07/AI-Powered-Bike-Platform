@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Homepage from "./pages/Homepage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { RoleProvider } from "./context/RoleContext";
+import { RegionProvider } from "./context/RegionContext";
 
 // Route-level code splitting: heavy pages (dashboards, details)
 // load on demand instead of bloating the initial bundle.
@@ -35,6 +36,7 @@ const RouteFallback = () => (
 function App() {
   return (
     <BrowserRouter>
+      <RegionProvider>
       <RoleProvider>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -114,6 +116,7 @@ function App() {
         </Routes>
         </Suspense>
       </RoleProvider>
+      </RegionProvider>
     </BrowserRouter>
   );
 }

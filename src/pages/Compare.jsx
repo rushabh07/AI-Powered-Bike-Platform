@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
+import { useRegion } from "../context/RegionContext";
 import {
     ApiError,
     searchMotorcycles,
@@ -72,7 +73,11 @@ const buildRows = (bikes) => {
                 },
                 {
                     label: "Price",
-                    cells: (b) => cell(b, formatPrice(b.price), b.price),
+                    cells: (b) => {
+                        const pricing = b.regionalPricing;
+                        const amount = pricing?.onRoadPrice ?? b.price;
+                        return cell(b, `${formatPrice(amount)} · ${pricing?.label || "On-road estimate"}`, amount);
+                    },
                 },
                 {
                     label: "Rating",
@@ -211,6 +216,7 @@ const buildRows = (bikes) => {
 export default function Compare() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { region } = useRegion();
 
     const [allBikes, setAllBikes] = useState([]);
     const [results, setResults] = useState([]);
@@ -231,6 +237,7 @@ export default function Compare() {
 
     const tableRef = useRef(null);
     const debounceRef = useRef(null);
+    const bootedRef = useRef(false);
 
     // Boot: full list (filters) + preselected ?id=
     useEffect(() => {
@@ -238,19 +245,22 @@ export default function Compare() {
             setBootLoading(true);
             setBootError("");
             try {
-                const bikes = await getAllMotorcycles();
+                const bikes = await getAllMotorcycles(region);
                 setAllBikes(bikes);
                 setResults(bikes);
+                const currentById = new Map(bikes.map((bike) => [String(bike._id), bike]));
+                setSelected((current) => current.map((bike) => currentById.get(String(bike._id)) || bike));
 
                 const preselect = searchParams.get("id");
-                if (preselect) {
+                if (preselect && !bootedRef.current) {
                     try {
-                        const bike = await getMotorcycle(preselect);
+                        const bike = await getMotorcycle(preselect, region);
                         setSelected([bike]);
                     } catch {
                         /* invalid id → ignore */
                     }
                 }
+                bootedRef.current = true;
             } catch (err) {
                 setBootError(
                     err.message || "Unable to load motorcycles."
@@ -260,8 +270,7 @@ export default function Compare() {
             }
         };
         boot();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [region.state, region.city]);
 
     // Debounced backend search
     useEffect(() => {
@@ -274,6 +283,8 @@ export default function Compare() {
                 if (query.trim()) params.set("search", query.trim());
                 if (brand !== "All") params.set("brand", brand);
                 if (category !== "All") params.set("category", category);
+                params.set("state", region.state);
+                params.set("city", region.city);
                 const res = await fetch(
                     `http://localhost:5000/api/motorcycles?${params.toString()}`
                 );
@@ -297,7 +308,7 @@ export default function Compare() {
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-    }, [query, brand, category, fuel, bootLoading]);
+    }, [query, brand, category, fuel, bootLoading, region.state, region.city]);
 
     const brands = useMemo(() => {
         const set = new Set();
@@ -503,7 +514,8 @@ export default function Compare() {
                                                 </p>
                                                 <p className="text-xs text-zinc-500">
                                                     {bike.category} •{" "}
-                                                    {formatPrice(bike.price)}
+                                                    {formatPrice(bike.regionalPricing?.onRoadPrice ?? bike.price)}
+                                                    <span className="block text-[10px] text-orange-400">{bike.regionalPricing?.label || "On-road estimate"}</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -699,9 +711,8 @@ export default function Compare() {
                                                     </p>
                                                     <p className="text-xs text-zinc-500">
                                                         {bike.category} •{" "}
-                                                        {formatPrice(
-                                                            bike.price
-                                                        )}
+                                                        {formatPrice(bike.regionalPricing?.onRoadPrice ?? bike.price)}
+                                                        <span className="block text-[10px] text-orange-400">{bike.regionalPricing?.label || "On-road estimate"}</span>
                                                     </p>
                                                 </div>
                                                 <button
