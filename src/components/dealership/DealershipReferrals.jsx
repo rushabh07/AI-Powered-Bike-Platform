@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PhoneCall, RefreshCw, Save, Bike, CalendarDays } from "lucide-react";
 
-const API = "http://localhost:5000/api";
+const API = "/api";
 const statuses = ["new", "contacted", "visit_scheduled", "negotiation", "converted", "rejected", "expired"];
 
 const DealershipReferrals = () => {

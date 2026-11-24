@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     LayoutDashboard,
     User,
@@ -35,7 +35,7 @@ import DealershipReferrals from "../components/dealership/DealershipReferrals";
 import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "/api";
 
 const ProviderDashboard = () => {
     const navigate = useNavigate();

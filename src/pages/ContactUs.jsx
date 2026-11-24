@@ -4,7 +4,7 @@ import { Send, CheckCircle, AlertTriangle, Loader2, Copy } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "/api";
 
 const CATEGORIES = [
     { id: "general", label: "General Inquiry" },

@@ -1,5 +1,4 @@
-import React from "react";
-import { FaMotorcycle } from "react-icons/fa";
+import { Bike } from "lucide-react";
 
 /**
  * Logo — MOTOAI brand lockup.
@@ -46,7 +45,7 @@ const Logo = ({
             <div
                 className={`${iconBoxSizes[size] || iconBoxSizes.md} bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/25 ring-1 ring-inset ring-black/10 text-black flex-shrink-0 transition-transform duration-200 hover:scale-[1.04]`}
             >
-                <FaMotorcycle />
+                <Bike aria-hidden="true" size={23} strokeWidth={2.8} />
             </div>
 
             <div className="flex min-w-0 flex-col justify-center">

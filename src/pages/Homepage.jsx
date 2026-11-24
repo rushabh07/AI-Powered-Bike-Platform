@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     FaMotorcycle,
@@ -21,10 +21,36 @@ import {
 } from "react-icons/fa";
 import Logo from "../components/Logo";
 import Navbar from "../components/Navbar";
-import AdvertisementSlider from "../components/AdvertisementSlider";
-import LatestUpdatesSection from "../components/LatestUpdatesSection";
 import { useRole } from "../context/RoleContext";
 import { useRegion } from "../context/RegionContext";
+
+const AdvertisementSlider = lazy(() => import("../components/AdvertisementSlider"));
+const LatestUpdatesSection = lazy(() => import("../components/LatestUpdatesSection"));
+
+function DeferredSection({ children, minHeight = "18rem" }) {
+    const host = useRef(null);
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+        if (!host.current || typeof IntersectionObserver === "undefined") {
+            setReady(true);
+            return;
+        }
+        const observer = new IntersectionObserver(([entry]) => {
+            if (!entry.isIntersecting) return;
+            setReady(true);
+            observer.disconnect();
+        }, { rootMargin: "500px 0px" });
+        observer.observe(host.current);
+        return () => observer.disconnect();
+    }, []);
+
+    return (
+        <div ref={host} style={{ minHeight: ready ? undefined : minHeight }}>
+            {ready ? <Suspense fallback={<div style={{ minHeight }} aria-hidden="true" />}>{children}</Suspense> : null}
+        </div>
+    );
+}
 
 // ==============================
 // API + CATEGORY PRESENTATION META
@@ -32,7 +58,7 @@ import { useRegion } from "../context/RegionContext";
 // from MongoDB at runtime. This map only holds icons and
 // taglines per category name — no motorcycle data.
 // ==============================
-const BIKES_API = "http://localhost:5000/api/motorcycles";
+const BIKES_API = "/api/motorcycles";
 
 const CATEGORY_META = {
     Sports: { icon: "🏁", description: "Fast & performance focused" },
@@ -128,10 +154,12 @@ const Button = ({
     children,
     onClick,
     primary = false,
-    className = ""
+    className = "",
+    "aria-label": ariaLabel,
 }) => (
     <button
         onClick={onClick}
+        aria-label={ariaLabel}
         className={`px-5 py-2.5 rounded-xl transition ${primary
                 ? "bg-orange-500 text-black font-bold hover:bg-orange-400"
                 : "border border-gray-700 hover:border-orange-500 hover:text-orange-500"
@@ -235,7 +263,7 @@ const RecommendationCard = ({ bike, navigate }) => {
 
             <div className="grid grid-cols-2 gap-3 mt-5">
                 <div className="bg-[#0d0d0d] rounded-lg p-3">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-400">
                         {isEV ? "Range" : "Engine"}
                     </p>
 
@@ -245,7 +273,7 @@ const RecommendationCard = ({ bike, navigate }) => {
                 </div>
 
                 <div className="bg-[#0d0d0d] rounded-lg p-3">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-400">
                         {isEV ? "Battery" : "Mileage"}
                     </p>
 
@@ -261,7 +289,7 @@ const RecommendationCard = ({ bike, navigate }) => {
                     Why AI picked this
                 </div>
 
-                <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+                <p className="text-gray-400 text-sm mt-2 leading-relaxed">
                     Great balance of performance, practicality and
                     value for everyday riders.
                 </p>
@@ -300,11 +328,15 @@ function Homepage() {
     // CMS-driven homepage configuration (published)
     const [homeConfig, setHomeConfig] = useState(null);
     useEffect(() => {
+        const controller = new AbortController();
         const params = new URLSearchParams(region);
-        fetch(`http://localhost:5000/api/homepage?${params.toString()}`)
+        fetch(`/api/homepage?${params.toString()}`, { signal: controller.signal })
             .then((res) => (res.ok ? res.json() : { configured: false, sections: [] }))
             .then((data) => setHomeConfig(data))
-            .catch(() => setHomeConfig({ configured: false, sections: [] }));
+            .catch((error) => {
+                if (error.name !== "AbortError") setHomeConfig({ configured: false, sections: [] });
+            });
+        return () => controller.abort();
     }, [region.state, region.city]);
 
     // Config helpers: section(key) returns the published section or null
@@ -331,40 +363,28 @@ function Homepage() {
     const [sectionsLoading, setSectionsLoading] = useState(true);
 
     useEffect(() => {
+        const controller = new AbortController();
         const loadSections = async () => {
             try {
                 const response = await fetch(
-                    `${BIKES_API}?sort=rating&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}`
+                    `${BIKES_API}/homepage-data?state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}`,
+                    { signal: controller.signal }
                 );
                 if (!response.ok) throw new Error("Failed to load motorcycles");
                 const data = await response.json();
-                const bikes = data.motorcycles || [];
-
-                // Top 3 rated → AI recommendations
-                setFeaturedBikes(bikes.slice(0, 3));
-
-                // Unique categories with counts → category cards
-                const seen = new Map();
-                bikes.forEach((bike) => {
-                    const name = (bike.category || "").trim();
-                    if (!name) return;
-                    const key = name.toLowerCase();
-                    if (seen.has(key)) {
-                        seen.get(key).count += 1;
-                    } else {
-                        seen.set(key, { name, count: 1 });
-                    }
-                });
-                setDbCategories([...seen.values()]);
+                setFeaturedBikes(data.featuredBikes || []);
+                setDbCategories(data.categories || []);
             } catch (error) {
+                if (error.name === "AbortError") return;
                 console.error("Homepage sections error:", error);
                 setFeaturedBikes([]);
                 setDbCategories([]);
             } finally {
-                setSectionsLoading(false);
+                if (!controller.signal.aborted) setSectionsLoading(false);
             }
         };
         loadSections();
+        return () => controller.abort();
     }, [region.state, region.city]);
 
     // ==============================
@@ -379,6 +399,7 @@ function Homepage() {
     // DATABASE SEARCH
     // ==============================
     useEffect(() => {
+        const controller = new AbortController();
         const searchDatabase = async () => {
             const query = searchQuery.trim();
 
@@ -392,7 +413,8 @@ function Homepage() {
 
             try {
                 const response = await fetch(
-                    `http://localhost:5000/api/motorcycles?search=${encodeURIComponent(query)}&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}`
+                    `/api/motorcycles?search=${encodeURIComponent(query)}&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}&page=1&limit=6`,
+                    { signal: controller.signal }
                 );
 
                 if (!response.ok) {
@@ -407,17 +429,21 @@ function Homepage() {
                     setSuggestions([]);
                 }
             } catch (error) {
+                if (error.name === "AbortError") return;
                 console.error("Motorcycle search error:", error);
                 setSuggestions([]);
             } finally {
-                setSearchLoading(false);
+                if (!controller.signal.aborted) setSearchLoading(false);
             }
         };
 
         // Debounce API request
         const timer = setTimeout(searchDatabase, 300);
 
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
     }, [searchQuery, region.state, region.city]);
 
     // ==============================
@@ -498,7 +524,7 @@ function Homepage() {
 
                                 <div className="relative flex-1">
 
-                                    <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500" />
+                                    <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
 
                                     <input
                                         value={searchQuery}
@@ -560,7 +586,7 @@ function Homepage() {
                                             </div>
                                         ) : suggestions.length > 0 ? (
                                             <>
-                                                <p className="px-4 py-3 text-xs text-gray-500 uppercase border-b border-gray-800">
+                                                <p className="px-4 py-3 text-xs text-gray-400 uppercase border-b border-gray-800">
                                                     Motorcycle Suggestions
                                                 </p>
 
@@ -605,7 +631,7 @@ function Homepage() {
                                                                     }
                                                                 </p>
 
-                                                                <p className="text-xs text-gray-500 mt-1">
+                                                                <p className="text-xs text-gray-400 mt-1">
                                                                     {
                                                                         bike.brand
                                                                     }{" "}
@@ -628,7 +654,7 @@ function Homepage() {
                                                                 </p>
                                                             </div>
 
-                                                            <FaArrowRight className="text-gray-600 flex-shrink-0" />
+                                                            <FaArrowRight className="text-gray-400 flex-shrink-0" />
                                                         </button>
                                                     ))}
                                             </>
@@ -636,13 +662,13 @@ function Homepage() {
                                             /* NO RESULTS */
                                             <div className="p-5 text-center">
 
-                                                <FaSearch className="mx-auto text-gray-600 text-2xl mb-3" />
+                                                <FaSearch className="mx-auto text-gray-400 text-2xl mb-3" />
 
                                                 <p className="text-gray-400 text-sm">
                                                     No motorcycles found
                                                 </p>
 
-                                                <p className="text-gray-600 text-xs mt-1">
+                                                <p className="text-gray-400 text-xs mt-1">
                                                     Try a brand, model,
                                                     category or engine
                                                     size
@@ -655,7 +681,7 @@ function Homepage() {
                             {/* POPULAR SEARCHES */}
                             <div className="flex flex-wrap gap-2 mt-4 text-sm">
 
-                                <span className="text-gray-500">
+                                <span className="text-gray-400">
                                     Popular:
                                 </span>
 
@@ -728,11 +754,11 @@ function Homepage() {
                                       ];
                                 return items.map(([value, label]) => (
                                     <div key={label}>
-                                        <h3 className="text-2xl sm:text-3xl font-bold">
+                                        <p className="text-2xl sm:text-3xl font-bold">
                                             {value}
-                                        </h3>
+                                        </p>
 
-                                        <p className="text-gray-500 text-xs sm:text-sm">
+                                        <p className="text-gray-400 text-xs sm:text-sm">
                                             {label}
                                         </p>
                                     </div>
@@ -789,13 +815,13 @@ function Homepage() {
             {/* ================= PROMOTIONS ================= */}
             {isSectionOn("promotions") && (
             <div className="pt-10">
-                <AdvertisementSlider />
+                <DeferredSection minHeight="20rem"><AdvertisementSlider /></DeferredSection>
             </div>
             )}
 
             {/* ================= LATEST MOTORCYCLE UPDATES ================= */}
             {isSectionOn("updates") && (
-                <LatestUpdatesSection />
+                <DeferredSection minHeight="22rem"><LatestUpdatesSection /></DeferredSection>
             )}
 
             {/* ================= RECOMMENDATIONS ================= */}
@@ -820,7 +846,7 @@ function Homepage() {
                                 </span>
                             </h2>
 
-                            <p className="text-gray-500 mt-4 max-w-xl">
+                            <p className="text-gray-400 mt-4 max-w-xl">
                                 Our AI analyzes your preferences and
                                 highlights motorcycles that best match
                                 your requirements.
@@ -856,7 +882,7 @@ function Homepage() {
                                 />
                             ))
                         ) : (
-                            <p className="text-gray-500 text-sm col-span-full">
+                            <p className="text-gray-400 text-sm col-span-full">
                                 Top-rated motorcycles will appear here
                                 once they are added to the database.
                             </p>
@@ -883,7 +909,7 @@ function Homepage() {
                             What Kind of Rider Are You?
                         </h2>
 
-                        <p className="text-gray-500 mt-3 sm:mt-4 text-sm sm:text-base">
+                        <p className="text-gray-400 mt-3 sm:mt-4 text-sm sm:text-base">
                             Choose a category and discover motorcycles
                             built for you.
                         </p>
@@ -929,7 +955,7 @@ function Homepage() {
                                         {name}
                                     </h3>
 
-                                    <p className="text-gray-500 text-sm mt-2">
+                                    <p className="text-gray-400 text-sm mt-2">
                                         {meta.description}
                                     </p>
 
@@ -945,7 +971,7 @@ function Homepage() {
                                 );
                             })
                         ) : (
-                            <p className="text-gray-500 text-sm col-span-full text-center">
+                            <p className="text-gray-400 text-sm col-span-full text-center">
                                 Categories will appear here once
                                 motorcycles are added to the database.
                             </p>
@@ -1039,7 +1065,7 @@ function Homepage() {
                                     {title}
                                 </h3>
 
-                                <p className="text-gray-500 mt-3">
+                                <p className="text-gray-400 mt-3">
                                     {text}
                                 </p>
                             </div>
@@ -1065,7 +1091,7 @@ function Homepage() {
                         </span>
                     </h2>
 
-                    <p className="text-gray-500 mt-6 max-w-xl mx-auto">
+                    <p className="text-gray-400 mt-6 max-w-xl mx-auto">
                         Let MOTOAI help you discover the motorcycle
                         that perfectly matches your lifestyle and
                         budget.
@@ -1108,7 +1134,7 @@ function Homepage() {
 
                             <Logo onClick={() => go("/")} />
 
-                            <p className="text-gray-500 mt-6 max-w-sm leading-relaxed">
+                            <p className="text-gray-400 mt-6 max-w-sm leading-relaxed">
                                 An AI-powered motorcycle purchasing
                                 platform that helps riders discover,
                                 compare and choose their perfect
@@ -1133,11 +1159,11 @@ function Homepage() {
                             ([title, links]) => (
                                 <div key={title}>
 
-                                    <h3 className="font-bold text-lg mb-6">
+                                    <h2 className="font-bold text-lg mb-6">
                                         {title}
-                                    </h3>
+                                    </h2>
 
-                                    <div className="space-y-4 text-gray-500 text-sm">
+                                    <div className="space-y-4 text-gray-400 text-sm">
 
                                         {links.map(
                                             ([label, path]) => (
@@ -1160,12 +1186,12 @@ function Homepage() {
 
                     <div className="mt-14 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between gap-5">
 
-                        <div className="flex items-center gap-2 text-gray-500 text-sm">
+                        <div className="flex items-center gap-2 text-gray-400 text-sm">
                             <FaMapMarkerAlt className="text-orange-500" />
                             India
                         </div>
 
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-400 text-sm">
                             AI-powered motorcycle discovery for modern
                             riders.
                         </p>
@@ -1176,11 +1202,11 @@ function Homepage() {
 
                     <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row justify-between gap-3 text-sm">
 
-                        <p className="text-gray-600">
+                        <p className="text-gray-400">
                             © 2026 MOTOAI. All rights reserved.
                         </p>
 
-                        <p className="text-gray-700">
+                        <p className="text-gray-500">
                             Built for riders. Powered by AI.
                         </p>
                     </div>

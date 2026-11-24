@@ -286,7 +286,7 @@ export default function Compare() {
                 params.set("state", region.state);
                 params.set("city", region.city);
                 const res = await fetch(
-                    `http://localhost:5000/api/motorcycles?${params.toString()}`
+                    `/api/motorcycles?${params.toString()}`
                 );
                 if (!res.ok) throw new Error("Search failed");
                 const data = await res.json();

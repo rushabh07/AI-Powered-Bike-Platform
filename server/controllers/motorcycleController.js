@@ -210,10 +210,17 @@ const getMotorcycles = async (req, res) => {
                 sortOption = { createdAt: -1 };
         }
 
-        const motorcycles = await Motorcycle
-            .find(filter)
-            .sort(sortOption)
-            .lean();
+        const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+        const limit = hasPagination
+            ? Math.min(60, Math.max(1, Number.parseInt(req.query.limit, 10) || 24))
+            : null;
+        const query = Motorcycle.find(filter).sort(sortOption);
+        if (hasPagination) query.skip((page - 1) * limit).limit(limit);
+        const [motorcycles, total] = await Promise.all([
+            query.lean(),
+            hasPagination ? Motorcycle.countDocuments(filter) : Promise.resolve(null),
+        ]);
 
         // Attach live rating summaries (approved reviews only) so
         // listing cards / search results show real database ratings.
@@ -231,10 +238,20 @@ const getMotorcycles = async (req, res) => {
             regionalPricing: calculateRegionalPricing({ exShowroomPrice: m.exShowroomPrice || m.price, cityPrices: m.cityPrices, state, city }),
         }));
 
+        res.set("Cache-Control", "public, max-age=15, stale-while-revalidate=30");
         res.status(200).json({
             success: true,
-            count: enriched.length,
-            motorcycles: enriched
+            count: hasPagination ? total : enriched.length,
+            motorcycles: enriched,
+            ...(hasPagination ? {
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit),
+                    hasMore: page * limit < total,
+                },
+            } : {}),
         });
 
     } catch (error) {
@@ -244,6 +261,69 @@ const getMotorcycles = async (req, res) => {
             success: false,
             message: "Failed to fetch motorcycles"
         });
+    }
+};
+
+const getMotorcycleMetadata = async (_req, res) => {
+    try {
+        const brands = await Motorcycle.aggregate([
+            { $match: { brand: { $type: "string", $ne: "" } } },
+            { $sort: { brand: 1, brandLogo: 1 } },
+            {
+                $group: {
+                    _id: { $toLower: "$brand" },
+                    brand: { $first: "$brand" },
+                    brandLogo: { $first: "$brandLogo" },
+                },
+            },
+            { $sort: { brand: 1 } },
+            { $project: { _id: 0, brand: 1, brandLogo: 1 } },
+        ]);
+        res.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+        return res.status(200).json({ success: true, brands });
+    } catch (error) {
+        console.error("Motorcycle metadata error:", error.message);
+        return res.status(500).json({ success: false, message: "Failed to fetch motorcycle filters." });
+    }
+};
+
+const getHomepageMotorcycleData = async (req, res) => {
+    try {
+        const state = String(req.query.state || "Maharashtra");
+        const city = String(req.query.city || "Pune");
+        const [categories, motorcycles] = await Promise.all([
+            Motorcycle.aggregate([
+                { $match: { category: { $type: "string", $ne: "" } } },
+                { $group: { _id: "$category", count: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            Motorcycle.find({}).sort({ rating: -1, createdAt: -1 }).limit(3).lean(),
+        ]);
+        let summaryMap = {};
+        try {
+            summaryMap = await fetchReviewSummaryMap(motorcycles.map((bike) => String(bike._id)));
+        } catch (error) {
+            console.error("Homepage review summary error:", error.message);
+        }
+        const featuredBikes = motorcycles.map((bike) => ({
+            ...bike,
+            reviewSummary: summaryMap[String(bike._id)] || { averageRating: 0, totalReviews: 0 },
+            regionalPricing: calculateRegionalPricing({
+                exShowroomPrice: bike.exShowroomPrice || bike.price,
+                cityPrices: bike.cityPrices,
+                state,
+                city,
+            }),
+        }));
+        res.set("Cache-Control", "public, max-age=15, stale-while-revalidate=30");
+        return res.status(200).json({
+            success: true,
+            featuredBikes,
+            categories: categories.map(({ _id, count }) => ({ name: _id, count })),
+        });
+    } catch (error) {
+        console.error("Homepage motorcycle data error:", error.message);
+        return res.status(500).json({ success: false, message: "Failed to fetch homepage motorcycles." });
     }
 };
 
@@ -282,6 +362,7 @@ const getMotorcycleById = async (req, res) => {
 
         const state = String(req.query.state || "Maharashtra");
         const city = String(req.query.city || "Pune");
+        res.set("Cache-Control", "public, max-age=15, stale-while-revalidate=30");
         res.status(200).json({
             success: true,
             motorcycle: {
@@ -620,6 +701,8 @@ const updateMotorcycleColors = async (req, res) => {
 
 module.exports = {
     getMotorcycles,
+    getMotorcycleMetadata,
+    getHomepageMotorcycleData,
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,

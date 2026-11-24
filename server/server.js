@@ -200,7 +200,12 @@ app.use((err, req, res, next) => {
 // ========================================
 
 mongoose
-    .connect(process.env.MONGO_URI)
+    .connect(process.env.MONGO_URI, {
+        maxPoolSize: Math.max(5, Number(process.env.MONGO_MAX_POOL_SIZE) || 20),
+        minPoolSize: 0,
+        maxIdleTimeMS: 30_000,
+        serverSelectionTimeoutMS: 10_000,
+    })
     .then(async () => {
         console.log("MongoDB connected successfully");
 

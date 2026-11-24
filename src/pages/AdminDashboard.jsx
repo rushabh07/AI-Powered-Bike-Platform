@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Bike,
@@ -40,22 +40,26 @@ LayoutTemplate,
 } from "lucide-react";
 import UserAvatar from "../components/UserAvatar";
 import BrandLogo from "../components/BrandLogo";
-import AISubscriptionsSection from "../components/admin/AISubscriptionsSection";
-import AIAnalyticsSection from "../components/admin/AIAnalyticsSection";
-import AdvertisementsSection from "../components/admin/AdvertisementsSection";
-import BikeOrdersSection from "../components/admin/BikeOrdersSection";
-import ReviewsManagementSection from "../components/admin/ReviewsManagementSection";
-import MotorcycleUpdatesSection from "../components/admin/MotorcycleUpdatesSection";
-import HomepageManagementSection from "../components/admin/HomepageManagementSection";
-import MotorcycleVariantManager from "../components/admin/MotorcycleVariantManager";
-import RegionalPricingManager from "../components/admin/RegionalPricingManager";
-import RoleManagementSection from "../components/admin/RoleManagementSection";
-import AdminCommissionSection from "../components/admin/AdminCommissionSection";
+const AISubscriptionsSection = lazy(() => import("../components/admin/AISubscriptionsSection"));
+const AIAnalyticsSection = lazy(() => import("../components/admin/AIAnalyticsSection"));
+const AdvertisementsSection = lazy(() => import("../components/admin/AdvertisementsSection"));
+const BikeOrdersSection = lazy(() => import("../components/admin/BikeOrdersSection"));
+const ReviewsManagementSection = lazy(() => import("../components/admin/ReviewsManagementSection"));
+const MotorcycleUpdatesSection = lazy(() => import("../components/admin/MotorcycleUpdatesSection"));
+const HomepageManagementSection = lazy(() => import("../components/admin/HomepageManagementSection"));
+const MotorcycleVariantManager = lazy(() => import("../components/admin/MotorcycleVariantManager"));
+const RegionalPricingManager = lazy(() => import("../components/admin/RegionalPricingManager"));
+const RoleManagementSection = lazy(() => import("../components/admin/RoleManagementSection"));
+const AdminCommissionSection = lazy(() => import("../components/admin/AdminCommissionSection"));
 import { useRole } from "../context/RoleContext";
 import { getAdminSubscriptionStats } from "../services/api";
 
-const API_URL = "http://localhost:5000/api/motorcycles";
-const ADMIN_API = "http://localhost:5000/api/admin";
+const API_URL = "/api/motorcycles";
+const ADMIN_API = "/api/admin";
+
+const SectionFallback = () => (
+    <div className="min-h-48 animate-pulse rounded-2xl border border-white/5 bg-white/[0.02]" aria-label="Loading section" />
+);
 
 const emptyForm = {
     name: "",
@@ -108,7 +112,7 @@ const EnquiriesSection = () => {
             if (statusFilter) qs.set("status", statusFilter);
             if (typeFilter) qs.set("enquiryType", typeFilter);
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/bike-enquiries/admin/all${qs.toString() ? `?${qs.toString()}` : ""}`, {
+            const res = await fetch(`/api/bike-enquiries/admin/all${qs.toString() ? `?${qs.toString()}` : ""}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
@@ -126,7 +130,7 @@ const EnquiriesSection = () => {
     const updateStatus = async (id, status) => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/bike-enquiries/admin/${id}/status`, {
+            const res = await fetch(`/api/bike-enquiries/admin/${id}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ status }),
@@ -233,7 +237,7 @@ const MessagesSection = () => {
         setError("");
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/contact/admin/messages?page=${page}&limit=15`, {
+            const res = await fetch(`/api/contact/admin/messages?page=${page}&limit=15`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
@@ -316,7 +320,7 @@ const DealershipsSection = () => {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch("http://localhost:5000/api/dealerships/admin/all", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+            const res = await fetch("/api/dealerships/admin/all", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to load dealerships");
             setItems(data.dealerships || []);
@@ -342,7 +346,7 @@ const DealershipsSection = () => {
                 brands: form.brands.split(",").map((b) => b.trim()).filter(Boolean),
                 timeSlots: form.timeSlots.split(",").map((s) => s.trim()).filter(Boolean),
             };
-            const res = await fetch(editing ? `http://localhost:5000/api/dealerships/${editing._id}` : "http://localhost:5000/api/dealerships", {
+            const res = await fetch(editing ? `/api/dealerships/${editing._id}` : "/api/dealerships", {
                 method: editing ? "PUT" : "POST",
                 headers: authHeaders(),
                 body: JSON.stringify(payload),
@@ -361,7 +365,7 @@ const DealershipsSection = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this dealership?")) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/dealerships/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+            const res = await fetch(`/api/dealerships/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to delete");
             await load();
@@ -436,7 +440,7 @@ const DealershipsSection = () => {
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                 <button onClick={async () => {
                                     try {
-                                        await fetch(`http://localhost:5000/api/dealerships/${d._id}`, {
+                                        await fetch(`/api/dealerships/${d._id}`, {
                                             method: "PUT",
                                             headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
                                             body: JSON.stringify({ approved: !d.approved }),
@@ -1963,19 +1967,19 @@ const AdminDashboard = () => {
 
                         {/* AI SUBSCRIPTIONS TAB */}
                         {activeTab === "subscriptions" && (
-                            <AISubscriptionsSection />
+                            <Suspense fallback={<SectionFallback />}><AISubscriptionsSection /></Suspense>
                         )}
 
                         {/* AI ANALYTICS TAB */}
                         {activeTab === "analytics" && (
-                            <AIAnalyticsSection />
+                            <Suspense fallback={<SectionFallback />}><AIAnalyticsSection /></Suspense>
                         )}
 
                         {/* COLORS TAB */}
                         {activeTab === "colors" && (
                             <ColorsSection
                                 motorcycles={motorcycles}
-                                apiUrl="http://localhost:5000/api/motorcycles"
+                                apiUrl="/api/motorcycles"
                             />
                         )}
 
@@ -1991,15 +1995,15 @@ const AdminDashboard = () => {
 
                         {/* ORDERS TAB */}
                         {activeTab === "orders" && (
-                            <BikeOrdersSection />
+                            <Suspense fallback={<SectionFallback />}><BikeOrdersSection /></Suspense>
                         )}
 
                         {/* DEALERSHIP COMMISSIONS TAB */}
-                        {activeTab === "commissions" && <AdminCommissionSection />}
+                        {activeTab === "commissions" && <Suspense fallback={<SectionFallback />}><AdminCommissionSection /></Suspense>}
 
                         {/* REVIEWS TAB */}
                         {activeTab === "reviews" && (
-                            <ReviewsManagementSection />
+                            <Suspense fallback={<SectionFallback />}><ReviewsManagementSection /></Suspense>
                         )}
 
                         {/* MESSAGES TAB */}
@@ -2009,17 +2013,17 @@ const AdminDashboard = () => {
 
                         {/* ADVERTISEMENTS TAB */}
                         {activeTab === "advertisements" && (
-                            <AdvertisementsSection />
+                            <Suspense fallback={<SectionFallback />}><AdvertisementsSection /></Suspense>
                         )}
 
                         {/* MOTORCYCLE UPDATES TAB */}
                         {activeTab === "updates" && (
-                            <MotorcycleUpdatesSection />
+                            <Suspense fallback={<SectionFallback />}><MotorcycleUpdatesSection /></Suspense>
                         )}
 
                         {/* HOMEPAGE MANAGEMENT TAB */}
                         {activeTab === "homepage" && (
-                            <HomepageManagementSection />
+                            <Suspense fallback={<SectionFallback />}><HomepageManagementSection /></Suspense>
                         )}
 
                         {/* DATABASE TAB */}
@@ -2034,7 +2038,7 @@ const AdminDashboard = () => {
                         )}
 
                         {/* ROLES & PERMISSIONS TAB */}
-                        {activeTab === "roles" && <RoleManagementSection />}
+                        {activeTab === "roles" && <Suspense fallback={<SectionFallback />}><RoleManagementSection /></Suspense>}
 
                         {/* PROFILE TAB */}
                         {activeTab === "profile" && (
@@ -2625,8 +2629,8 @@ const AdminDashboard = () => {
 
                                     </div>
 
-                                    {editingId && <RegionalPricingManager motorcycleId={editingId} initialCityPrices={form.cityPrices} />}
-                                    {editingId && <MotorcycleVariantManager motorcycleId={editingId} />}
+                                    {editingId && <Suspense fallback={<SectionFallback />}><RegionalPricingManager motorcycleId={editingId} initialCityPrices={form.cityPrices} /></Suspense>}
+                                    {editingId && <Suspense fallback={<SectionFallback />}><MotorcycleVariantManager motorcycleId={editingId} /></Suspense>}
 
                                 </div>
 

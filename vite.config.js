@@ -10,5 +10,15 @@ export default defineConfig({
     // Vite falls back to 5174 instead of failing to start. The API's CORS
     // allows any loopback origin, so the app still works on the fallback.
     port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
   },
 })

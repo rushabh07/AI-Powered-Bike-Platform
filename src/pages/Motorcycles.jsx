@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
@@ -18,7 +18,7 @@ import {
     ShoppingCart,
 } from "lucide-react";
 
-const API = "http://localhost:5000/api/motorcycles";
+const API = "/api/motorcycles";
 
 const categories = [
     "All",
@@ -43,6 +43,7 @@ export default function Motorcycles() {
     const [search, setSearch] = useState(
         searchParams.get("search") || ""
     );
+    const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get("search") || "");
 
     const [category, setCategory] = useState(
         searchParams.get("category") || "All"
@@ -54,50 +55,41 @@ export default function Motorcycles() {
     const [sort, setSort] = useState("default");
 
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [wishlist, setWishlist] = useState([]);
 
 
-    // All motorcycles (unfiltered) — used ONLY to derive the
-    // dynamic brand filter options (unique brand + first logo).
-    const [allBikes, setAllBikes] = useState([]);
+    // Small cached brand metadata powers the dynamic brand filter options.
+    const [brandOptions, setBrandOptions] = useState([]);
+    const previousFilterKey = useRef("");
 
     useEffect(() => {
-        fetch(API)
+        const controller = new AbortController();
+        fetch(`${API}/meta`, { signal: controller.signal })
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
-                if (data) setAllBikes(data.motorcycles || []);
+                if (data) setBrandOptions(data.brands || []);
             })
             .catch((error) => {
+                if (error.name === "AbortError") return;
                 console.error(
                     "Brand options fetch error:",
                     error
                 );
             });
+        return () => controller.abort();
     }, []);
 
     // Unique brands with their first available logo (dynamic, from API)
-    const brandOptions = allBikes.reduce((list, bike) => {
-        if (!bike.brand) return list;
-        const existing = list.find(
-            (item) =>
-                item.brand.toLowerCase() ===
-                bike.brand.toLowerCase()
-        );
-        if (existing) {
-            if (!existing.brandLogo && bike.brandLogo) {
-                existing.brandLogo = bike.brandLogo;
-            }
-            return list;
-        }
-        return [
-            ...list,
-            {
-                brand: bike.brand,
-                brandLogo: bike.brandLogo || "",
-            },
-        ];
-    }, []);
+    const filterKey = JSON.stringify([debouncedSearch, category, brand, maxPrice, minEngine, sort, region.state, region.city]);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => setDebouncedSearch(search), 250);
+        return () => window.clearTimeout(timeout);
+    }, [search]);
 
     // =====================================
     // SYNC SEARCH FROM URL
@@ -116,12 +108,22 @@ export default function Motorcycles() {
     // FETCH MOTORCYCLES
     // =====================================
     useEffect(() => {
-        setLoading(true);
+        if (previousFilterKey.current !== filterKey) {
+            previousFilterKey.current = filterKey;
+            if (page !== 1) {
+                setPage(1);
+                return;
+            }
+        }
+
+        const controller = new AbortController();
+        if (page === 1) setLoading(true);
+        else setLoadingMore(true);
 
         const params = new URLSearchParams();
 
-        if (search.trim()) {
-            params.set("search", search.trim());
+        if (debouncedSearch.trim()) {
+            params.set("search", debouncedSearch.trim());
         }
 
         if (category !== "All") {
@@ -145,8 +147,10 @@ export default function Motorcycles() {
         }
         params.set("state", region.state);
         params.set("city", region.city);
+        params.set("page", String(page));
+        params.set("limit", "24");
 
-        fetch(`${API}?${params.toString()}`)
+        fetch(`${API}?${params.toString()}`, { signal: controller.signal })
             .then((res) => {
                 if (!res.ok) {
                     throw new Error(
@@ -157,20 +161,27 @@ export default function Motorcycles() {
                 return res.json();
             })
             .then((data) => {
-                setBikes(data.motorcycles || []);
-                setLoading(false);
+                setBikes((current) => page === 1 ? data.motorcycles || [] : [...current, ...(data.motorcycles || [])]);
+                setPagination(data.pagination || null);
+                if (page === 1) setLoading(false);
+                setLoadingMore(false);
             })
             .catch((error) => {
+                if (error.name === "AbortError") return;
                 console.error(
                     "Motorcycle fetch error:",
                     error
                 );
 
-                setBikes([]);
-                setLoading(false);
+                if (page === 1) {
+                    setBikes([]);
+                    setLoading(false);
+                }
+                setLoadingMore(false);
             });
+        return () => controller.abort();
     }, [
-        search,
+        debouncedSearch,
         category,
         brand,
         maxPrice,
@@ -178,6 +189,8 @@ export default function Motorcycles() {
         sort,
         region.state,
         region.city,
+        filterKey,
+        page,
     ]);
 
     // =====================================
@@ -411,7 +424,7 @@ export default function Motorcycles() {
                         <p className="mt-2 text-sm text-zinc-500">
                             {loading
                                 ? "Finding motorcycles..."
-                                : `${bikes.length} motorcycles found`}
+                                : `${pagination?.total ?? bikes.length} motorcycles found`}
                         </p>
 
                     </div>
@@ -894,6 +907,19 @@ export default function Motorcycles() {
 
                             </div>
 
+                        )}
+
+                        {!loading && pagination?.hasMore && (
+                            <div className="mt-8 flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setPage((current) => current + 1)}
+                                    disabled={loadingMore}
+                                    className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-6 py-3 text-sm font-bold text-orange-300 transition hover:bg-orange-500/20 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                    {loadingMore ? "Loading motorcycles…" : "Load more motorcycles"}
+                                </button>
+                            </div>
                         )}
 
                     </section>

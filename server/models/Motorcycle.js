@@ -205,4 +205,10 @@ const motorcycleSchema = new mongoose.Schema(
     }
 );
 
+motorcycleSchema.index({ brand: 1, category: 1, createdAt: -1 });
+motorcycleSchema.index({ category: 1 });
+motorcycleSchema.index({ price: 1 });
+motorcycleSchema.index({ createdAt: -1 });
+motorcycleSchema.index({ rating: -1, createdAt: -1 });
+
 module.exports = mongoose.model("Motorcycle", motorcycleSchema);

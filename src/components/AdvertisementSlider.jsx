@@ -27,7 +27,7 @@ const AdvertisementSlider = () => {
         let cancelled = false;
         (async () => {
             try {
-                const res = await fetch("http://localhost:5000/api/advertisements");
+                const res = await fetch("/api/advertisements");
                 const data = await res.json();
                 if (!cancelled && data.success) setAds(data.advertisements || []);
             } catch {
@@ -61,7 +61,7 @@ const AdvertisementSlider = () => {
         const ad = ads[index];
         if (!ad || seenImpressions.current.has(ad._id)) return;
         seenImpressions.current.add(ad._id);
-        fetch(`http://localhost:5000/api/advertisements/${ad._id}/impression`, { method: "POST" }).catch(() => {});
+        fetch(`/api/advertisements/${ad._id}/impression`, { method: "POST" }).catch(() => {});
     }, [index, ads]);
 
     // Keyboard navigation
@@ -86,7 +86,7 @@ const AdvertisementSlider = () => {
 
     const openAd = (ad) => {
         if (!ad || !isSafeTarget(ad.targetUrl)) return;
-        fetch(`http://localhost:5000/api/advertisements/${ad._id}/click`, { method: "POST" }).catch(() => {});
+        fetch(`/api/advertisements/${ad._id}/click`, { method: "POST" }).catch(() => {});
         const t = ad.targetUrl.trim();
         if (t.startsWith("/")) navigate(t);
         else window.open(t, "_blank", "noopener,noreferrer");
@@ -120,6 +120,7 @@ const AdvertisementSlider = () => {
                         <div
                             key={ad._id}
                             aria-hidden={!active}
+                            inert={!active}
                             className={`absolute inset-0 transition-opacity duration-700 ${active ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
                         >
                             {failedImages[ad._id] ? (
@@ -164,14 +165,14 @@ const AdvertisementSlider = () => {
                         <button
                             aria-label="Previous promotion"
                             onClick={() => go(-1)}
-                            className="absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/60 p-2.5 text-white backdrop-blur-md transition hover:bg-orange-500 hover:text-black"
+                            className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white backdrop-blur-md transition hover:bg-orange-500 hover:text-black"
                         >
                             <ChevronLeft size={18} />
                         </button>
                         <button
                             aria-label="Next promotion"
                             onClick={() => go(1)}
-                            className="absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/10 bg-black/60 p-2.5 text-white backdrop-blur-md transition hover:bg-orange-500 hover:text-black"
+                            className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white backdrop-blur-md transition hover:bg-orange-500 hover:text-black"
                         >
                             <ChevronRight size={18} />
                         </button>
@@ -181,8 +182,10 @@ const AdvertisementSlider = () => {
                                     key={ad._id}
                                     aria-label={`Go to promotion ${i + 1}`}
                                     onClick={() => setIndex(i)}
-                                    className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-orange-500" : "w-1.5 bg-white/40 hover:bg-white/70"}`}
-                                />
+                                    className="flex h-6 w-6 items-center justify-center rounded-full"
+                                >
+                                    <span aria-hidden="true" className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-orange-500" : "w-1.5 bg-white/40 hover:bg-white/70"}`} />
+                                </button>
                             ))}
                         </div>
                     </>

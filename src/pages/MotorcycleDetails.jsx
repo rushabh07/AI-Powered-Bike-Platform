@@ -30,7 +30,7 @@ import {
     Store,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/motorcycles";
+const API_URL = "/api/motorcycles";
 
 const MotorcycleDetails = () => {
     const { id } = useParams();
@@ -117,6 +117,10 @@ const MotorcycleDetails = () => {
             fetchMotorcycle();
         }
     }, [id, region.state, region.city]);
+
+    useEffect(() => {
+        if (bike?.name) document.title = `${bike.brand || ""} ${bike.name} | MOTOAI`.trim();
+    }, [bike?.brand, bike?.name]);
 
     // Fetch variants
     useEffect(() => {

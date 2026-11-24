@@ -2,6 +2,8 @@ const express = require("express");
 
 const {
     getMotorcycles,
+    getMotorcycleMetadata,
+    getHomepageMotorcycleData,
     getMotorcycleById,
     createMotorcycle,
     updateMotorcycle,
@@ -22,6 +24,8 @@ const router = express.Router();
 // GET /api/motorcycles
 // =====================================
 router.get("/", getMotorcycles);
+router.get("/meta", getMotorcycleMetadata);
+router.get("/homepage-data", getHomepageMotorcycleData);
 
 
 // =====================================
