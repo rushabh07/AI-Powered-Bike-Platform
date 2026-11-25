@@ -1,4 +1,5 @@
-const API_BASE = "/api";
+const BACKEND_URI = (import.meta.env.VITE_BACKEND_URI || "").replace(/\/+$/, "");
+const API_BASE = `${BACKEND_URI}/api`;
 
 export const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
@@ -328,10 +329,10 @@ export const getPublicAdvertisements = async (placement = "homepage") => {
 };
 
 export const trackAdImpression = (id) =>
-    fetch(`${API_BASE}/advertisements/${id}/impression`, { method: "POST" }).catch(() => {});
+    fetch(`${API_BASE}/advertisements/${id}/impression`, { method: "POST" }).catch(() => { });
 
 export const trackAdClick = (id) =>
-    fetch(`${API_BASE}/advertisements/${id}/click`, { method: "POST" }).catch(() => {});
+    fetch(`${API_BASE}/advertisements/${id}/click`, { method: "POST" }).catch(() => { });
 
 export const exportAdminSubscriptionsCsv = async (params = {}) => {
     const qs = new URLSearchParams();
