@@ -49,7 +49,7 @@ const app = express();
 //   CLIENT_ORIGIN=https://motoai.com,https://www.motoai.com
 const ALLOWED_ORIGINS = (process.env.CLIENT_ORIGIN || "")
     .split(",")
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 
 const isLoopbackOrigin = (origin) => {
@@ -61,11 +61,33 @@ const isLoopbackOrigin = (origin) => {
     }
 };
 
+const isProjectVercelOrigin = (origin) => {
+    try {
+        const { protocol, hostname } = new URL(origin);
+        return protocol === "https:" && /^ai-powered-bike-platform(-[a-z0-9-]+)?\.vercel\.app$/i.test(hostname);
+    } catch {
+        return false;
+    }
+};
+
+const matchesAllowedOrigin = (origin) => {
+    const normalized = origin.replace(/\/+$/, "");
+    return ALLOWED_ORIGINS.some((pattern) => {
+        if (pattern === normalized) return true;
+        if (pattern.includes("*")) {
+            const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]+");
+            return new RegExp(`^${escaped}$`, "i").test(normalized);
+        }
+        return false;
+    });
+};
+
 const corsOrigin = (origin, callback) => {
     // Same-origin / non-browser requests (curl, mobile app) send no Origin.
     if (!origin) return callback(null, true);
+    if (isProjectVercelOrigin(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.length > 0) {
-        return callback(null, ALLOWED_ORIGINS.includes(origin));
+        return callback(null, matchesAllowedOrigin(origin) || isLoopbackOrigin(origin));
     }
     return callback(null, isLoopbackOrigin(origin));
 };
