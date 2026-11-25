@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Dealership = require("../models/Dealership");
+const Motorcycle = require("../models/Motorcycle");
 const BikeEnquiry = require("../models/BikeEnquiry");
 const Sale = require("../models/Sale");
 const Review = require("../models/Review");
@@ -203,19 +204,52 @@ const updateStock = async (req, res) => {
         if (!d) return res.status(404).json({ success: false, message: "Dealership not found." });
         const { motorcycle, quantity, price } = req.body;
         if (!isValidId(motorcycle)) return res.status(400).json({ success: false, message: "Invalid motorcycle ID." });
-        const idx = d.stock.findIndex((s) => String(s.motorcycle) === String(motorcycle));
-        if (Number(quantity) <= 0) {
-            if (idx >= 0) d.stock.splice(idx, 1);
-        } else if (idx >= 0) {
-            d.stock[idx].quantity = Number(quantity);
-            if (price !== undefined) d.stock[idx].price = Number(price);
-        } else {
-            d.stock.push({ motorcycle, quantity: Number(quantity), price: Number(price) || 0 });
+        const normalizedQuantity = Number(quantity);
+        if (!Number.isSafeInteger(normalizedQuantity) || normalizedQuantity < 0) {
+            return res.status(400).json({ success: false, message: "Quantity must be a non-negative whole number." });
         }
-        await d.save();
-        await d.populate({ path: "stock.motorcycle", select: "name brand price image" });
+        const normalizedPrice = price === undefined ? undefined : Number(price);
+        if (normalizedPrice !== undefined && (!Number.isFinite(normalizedPrice) || normalizedPrice < 0)) {
+            return res.status(400).json({ success: false, message: "Price must be a non-negative number." });
+        }
+        if (normalizedQuantity > 0 && !(await Motorcycle.exists({ _id: motorcycle }))) {
+            return res.status(404).json({ success: false, message: "Motorcycle not found." });
+        }
+        const idx = d.stock.findIndex((s) => String(s.motorcycle) === String(motorcycle));
+        const accessFilter = { _id: d._id };
+        if (req.user.role !== "admin") {
+            accessFilter.$or = [{ owner: req.user._id }, { "staff.user": req.user._id }];
+        }
+        let updateFilter = accessFilter;
+        let update;
+        if (normalizedQuantity === 0) {
+            update = { $pull: { stock: { motorcycle } } };
+        } else if (idx >= 0) {
+            updateFilter = { ...accessFilter, "stock.motorcycle": motorcycle };
+            const fields = { "stock.$.quantity": normalizedQuantity };
+            if (normalizedPrice !== undefined) fields["stock.$.price"] = normalizedPrice;
+            update = { $set: fields };
+        } else {
+            updateFilter = { ...accessFilter, "stock.motorcycle": { $ne: motorcycle } };
+            update = { $push: { stock: { motorcycle, quantity: normalizedQuantity, price: normalizedPrice ?? 0 } } };
+        }
+
+        let updated = await Dealership.findOneAndUpdate(updateFilter, update, { new: true });
+        // If another request added this motorcycle after our initial read,
+        // apply the requested quantity to that new row instead of duplicating it.
+        if (!updated && normalizedQuantity > 0 && idx < 0) {
+            const fields = { "stock.$.quantity": normalizedQuantity };
+            if (normalizedPrice !== undefined) fields["stock.$.price"] = normalizedPrice;
+            updated = await Dealership.findOneAndUpdate(
+                { ...accessFilter, "stock.motorcycle": motorcycle },
+                { $set: fields },
+                { new: true }
+            );
+        }
+        if (!updated) return res.status(404).json({ success: false, message: "Dealership not found or access was removed." });
+        await updated.populate({ path: "stock.motorcycle", select: "name brand price image" });
         audit(req.user._id, "dealership.stock.update", "Dealership", d._id, d._id, `${motorcycle}:${quantity}`);
-        res.status(200).json({ success: true, stock: d.stock });
+        res.status(200).json({ success: true, stock: updated.stock });
     } catch (error) {
         console.error("Update stock error:", error.message);
         res.status(500).json({ success: false, message: "Could not update stock." });

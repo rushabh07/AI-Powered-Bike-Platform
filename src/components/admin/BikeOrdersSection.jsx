@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Search, Eye, Check, X, ShieldCheck, Package, RefreshCw, Calendar, Phone, MapPin, Store, AlertCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Eye, Check, X, ShieldCheck, Package, RefreshCw, Store } from "lucide-react";
 import {
     getStaffOrders,
     getOrder,
@@ -70,7 +70,7 @@ export default function BikeOrdersSection() {
     useEffect(() => {
         const t = setTimeout(load, search ? 400 : 0);
         return () => clearTimeout(t);
-    }, [load]);
+    }, [load, search]);
 
     const openDetail = async (id) => {
         setDetailLoading(true);

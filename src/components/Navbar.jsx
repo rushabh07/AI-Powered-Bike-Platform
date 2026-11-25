@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -40,7 +40,7 @@ const NAV_LINKS = [
 const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#070708]";
 
-export default function Navbar({ activeTab, showTokens = true, position = "sticky", leading = null }) {
+export default function Navbar({ activeTab, position = "sticky", leading = null }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { can, loading: permLoading } = useRole();
@@ -56,17 +56,17 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
     const [planStatus, setPlanStatus] = useState(null);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [wideNav, setWideNav] = useState(false);
+    const [headerRegion, setHeaderRegion] = useState(false);
 
     const userMenuRef = useRef(null);
+    const headerRowRef = useRef(null);
     const mobilePanelRef = useRef(null);
     const mobileToggleRef = useRef(null);
 
     const fetchStatus = useCallback(async () => {
         const token = localStorage.getItem("token");
-        if (!token) {
-            setPlanStatus(null);
-            return;
-        }
+        if (!token) return;
         try {
             const data = await getSubscriptionStatus();
             if (data && data.success) {
@@ -92,12 +92,22 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
     }, []);
 
     useEffect(() => {
-        try {
-            setCurrentUser(JSON.parse(localStorage.getItem("user") || "null"));
-        } catch {
-            setCurrentUser(null);
-        }
-        fetchStatus();
+        let active = true;
+        const refreshFromStorage = () => {
+            queueMicrotask(() => {
+                if (!active) return;
+                try {
+                    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+                    setCurrentUser((current) =>
+                        JSON.stringify(current) === JSON.stringify(storedUser) ? current : storedUser
+                    );
+                } catch {
+                    setCurrentUser(null);
+                }
+                fetchStatus();
+            });
+        };
+        refreshFromStorage();
 
         const handleStorageOrSubUpdate = () => {
             try {
@@ -105,7 +115,8 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
             } catch {
                 setCurrentUser(null);
             }
-            fetchStatus();
+            if (localStorage.getItem("token")) fetchStatus();
+            else setPlanStatus(null);
         };
 
         window.addEventListener("subscriptionUpdated", handleStorageOrSubUpdate);
@@ -113,6 +124,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
         window.addEventListener("focus", fetchStatus);
 
         return () => {
+            active = false;
             window.removeEventListener("subscriptionUpdated", handleStorageOrSubUpdate);
             window.removeEventListener("storage", handleStorageOrSubUpdate);
             window.removeEventListener("focus", fetchStatus);
@@ -129,15 +141,58 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
         setMobileMenuOpen(false);
     }
 
-    /* Lock background scrolling while the mobile sheet is open. */
+    /* Measure the available navbar space instead of guessing from viewport
+       breakpoints. The full link row needs room for the brand and controls. */
     useEffect(() => {
-        if (!mobileMenuOpen) return undefined;
+        const headerRow = headerRowRef.current;
+        if (!headerRow) return undefined;
+
+        const observer = new ResizeObserver(([entry]) => {
+            const width = entry.contentRect.width;
+            const nextWideNav = width >= 1400;
+            const nextHeaderRegion = width >= 1024;
+            setWideNav((current) => current === nextWideNav ? current : nextWideNav);
+            setHeaderRegion((current) => current === nextHeaderRegion ? current : nextHeaderRegion);
+            if (nextWideNav) setMobileMenuOpen(false);
+        });
+        observer.observe(headerRow);
+        return () => observer.disconnect();
+    }, []);
+
+    /* Lock scrolling and keep keyboard focus inside the mobile menu. */
+    useEffect(() => {
+        if (!mobileMenuOpen || wideNav) return undefined;
         const previousOverflow = document.body.style.overflow;
+        const mobileToggle = mobileToggleRef.current;
         document.body.style.overflow = "hidden";
+        const panel = mobilePanelRef.current;
+        const focusable = () => panel?.querySelectorAll(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) || [];
+        const first = focusable()[0];
+        first?.focus();
+
+        const trapTab = (event) => {
+            if (event.key !== "Tab") return;
+            const items = focusable();
+            if (!items.length) return;
+            const firstItem = items[0];
+            const lastItem = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === firstItem) {
+                event.preventDefault();
+                lastItem.focus();
+            } else if (!event.shiftKey && document.activeElement === lastItem) {
+                event.preventDefault();
+                firstItem.focus();
+            }
+        };
+        panel?.addEventListener("keydown", trapTab);
         return () => {
             document.body.style.overflow = previousOverflow;
+            panel?.removeEventListener("keydown", trapTab);
+            mobileToggle?.focus();
         };
-    }, [mobileMenuOpen]);
+    }, [mobileMenuOpen, wideNav]);
 
     /* Escape closes menus; outside clicks close the profile dropdown. */
     useEffect(() => {
@@ -221,8 +276,8 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
             className={`${positionClass} z-50 border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl dark:border-white/[0.07] dark:bg-[#070708]/85`}
             aria-label="Main navigation"
         >
-            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex h-16 items-center justify-between gap-3 sm:h-[72px] lg:h-20">
+            <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+                <div ref={headerRowRef} className="flex h-16 items-center justify-between gap-2 sm:h-[72px] sm:gap-3 lg:h-20">
                     {/* ---------------------------------------------- Brand */}
                     <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
                         {/* Optional app-specific control (e.g. AI Advisor chat drawer) */}
@@ -233,13 +288,14 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             className={`group flex items-center rounded-xl ${focusRing}`}
                             aria-label="MOTOAI home"
                         >
-                            <Logo />
+                            <span className="md:hidden"><Logo size="sm" showSubtitle={false} /></span>
+                            <span className="hidden md:block"><Logo /></span>
                         </Link>
                     </div>
 
                     {/* ---------------------------------- Desktop navigation */}
                     <nav
-                        className="hidden min-w-0 flex-1 items-center justify-between xl:flex xl:pr-5 2xl:pr-6"
+                        className={`${wideNav ? "flex" : "hidden"} min-w-0 flex-1 items-center justify-center gap-2 2xl:gap-4 2xl:pr-6`}
                         aria-label="Primary"
                     >
                         {NAV_LINKS.map(({ label, path, icon: Icon, permission }) => {
@@ -251,7 +307,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                         key={label}
                                         title="Access denied — your role does not have permission to view this page."
                                         aria-disabled="true"
-                                        className="relative flex cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2 text-[13.5px] font-semibold tracking-tight text-zinc-500 opacity-50 dark:text-zinc-600"
+                                        className="relative flex shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 py-2 text-[13.5px] font-semibold tracking-tight text-zinc-500 opacity-50 dark:text-zinc-600 2xl:px-2"
                                     >
                                         <Icon size={15} aria-hidden="true" />
                                         {label}
@@ -264,7 +320,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                     key={label}
                                     to={path}
                                     aria-current={active ? "page" : undefined}
-                                    className={`relative flex items-center gap-1.5 whitespace-nowrap rounded-md py-2 text-[13.5px] font-semibold tracking-tight transition-colors duration-200 ${focusRing} ${
+                                    className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 py-2 text-[13.5px] font-semibold tracking-tight transition-colors duration-200 2xl:px-2 ${focusRing} ${
                                         active
                                             ? "text-orange-600 dark:text-orange-500"
                                             : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
@@ -293,8 +349,8 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                     </nav>
 
                     {/* --------------------------------------- Right controls */}
-                    <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-                        <div className="hidden xl:block"><RegionSelector /></div>
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+                        {headerRegion && <div className="shrink-0"><RegionSelector /></div>}
                         <ThemeToggle />
 
                         {/* Admin quick access */}
@@ -302,38 +358,28 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             <Link
                                 to="/admin"
                                 title="Open admin panel"
-                                className={`hidden items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-3.5 py-1.5 text-xs font-bold text-orange-600 transition-colors duration-200 hover:bg-orange-500/20 dark:text-orange-400 xl:flex ${focusRing}`}
+                                className={`hidden items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-3.5 py-1.5 text-xs font-bold text-orange-600 transition-colors duration-200 hover:bg-orange-500/20 dark:text-orange-400 ${wideNav ? "flex" : ""} ${focusRing}`}
                             >
                                 <Crown size={13} className="text-orange-500" aria-hidden="true" />
                                 Admin Panel
                             </Link>
                         )}
 
-                        {/* Subscription & Token Badge (customers only) */}
+                        {/* Compact plan shortcut; full plan details stay in the account menu. */}
                         {isCustomer && aiAllowed && (
                             <Link
                                 to="/ai-plan"
                                 title="Manage your MOTOAI plan"
-                                className={`hidden items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors duration-200 xl:flex ${focusRing} ${
+                                aria-label={`Manage your ${planLabel}, ${tokenLabel}`}
+                                className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors duration-200 ${wideNav ? "flex" : ""} ${focusRing} ${
                                     isPremium
                                         ? "border-orange-500/30 bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 dark:text-orange-400"
                                         : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-orange-500/30 hover:text-zinc-900 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:border-orange-500/30 dark:hover:text-white"
                                 }`}
                             >
-                                {isPremium ? (
-                                    <>
-                                        <Crown size={13} className="text-orange-500" aria-hidden="true" />
-                                        <span>
-                                            Premium {planType === "yearly" ? "Yearly" : "Monthly"}
-                                            {showTokens ? ` • ${tokenLabel}` : ""}
-                                        </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Coins size={13} className="text-zinc-400" aria-hidden="true" />
-                                        <span>{showTokens ? `Free • ${tokenLabel}` : "Free Plan"}</span>
-                                    </>
-                                )}
+                                {isPremium
+                                    ? <Crown size={16} className="text-orange-500" aria-hidden="true" />
+                                    : <Coins size={16} className="text-zinc-400" aria-hidden="true" />}
                             </Link>
                         )}
 
@@ -348,7 +394,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                     className={`flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 py-1 pl-1 pr-2.5 transition-colors duration-200 hover:border-orange-500/40 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] sm:gap-2.5 ${focusRing}`}
                                 >
                                     <UserAvatar user={currentUser} size={30} />
-                                    <span className="hidden min-w-0 text-left sm:block">
+                                    <span className="hidden min-w-0 text-left md:block">
                                         <span className="block max-w-[120px] truncate text-[13px] font-semibold leading-tight text-zinc-900 dark:text-white xl:max-w-[140px]">
                                             {currentUser.name}
                                         </span>
@@ -359,7 +405,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                     <ChevronDown
                                         size={14}
                                         aria-hidden="true"
-                                        className={`hidden shrink-0 text-zinc-400 transition-transform duration-200 sm:block ${
+                                        className={`hidden shrink-0 text-zinc-400 transition-transform duration-200 md:block ${
                                             userMenuOpen ? "rotate-180" : ""
                                         }`}
                                     />
@@ -474,7 +520,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                                 )}
                             </div>
                         ) : (
-                            <div className="hidden items-center gap-2 xl:flex">
+                            <div className={`hidden items-center gap-2 ${wideNav ? "flex" : ""}`}>
                                 <Link
                                     to="/login"
                                     className={`flex items-center gap-1.5 rounded-xl border border-zinc-200 px-3.5 py-2 text-xs font-bold text-zinc-700 transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-white ${focusRing}`}
@@ -499,7 +545,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                             aria-expanded={mobileMenuOpen}
                             aria-controls="motoai-mobile-menu"
-                            className={`flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 transition-colors hover:border-orange-500/40 hover:text-orange-600 dark:border-white/10 dark:text-zinc-400 dark:hover:text-orange-400 xl:hidden ${focusRing}`}
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 transition-colors hover:border-orange-500/40 hover:text-orange-600 dark:border-white/10 dark:text-zinc-400 dark:hover:text-orange-400 ${wideNav ? "hidden" : ""} ${focusRing}`}
                         >
                             {mobileMenuOpen ? (
                                 <X size={18} aria-hidden="true" />
@@ -515,19 +561,21 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                 Rendered through a portal: the navbar uses backdrop-filter,
                 which makes it the containing block for fixed children and
                 would otherwise trap the sheet inside the bar. */}
-            {mobileMenuOpen &&
+            {mobileMenuOpen && !wideNav &&
                 createPortal(
                     <>
                         <div
-                            className="fixed inset-0 top-16 bottom-0 z-40 bg-black/60 backdrop-blur-sm sm:top-[72px] xl:hidden"
+                            className="fixed inset-0 top-16 bottom-0 z-40 bg-black/60 backdrop-blur-sm sm:top-[72px]"
                             onClick={closeMobileMenu}
                             aria-hidden="true"
                         />
                         <nav
                             id="motoai-mobile-menu"
                             ref={mobilePanelRef}
-                            aria-label="Mobile"
-                            className="fixed inset-x-0 top-16 bottom-0 z-45 overflow-y-auto overscroll-contain border-t border-zinc-200 bg-white px-5 pb-10 pt-5 sm:top-[72px] xl:hidden dark:border-white/[0.07] dark:bg-[#0b0b0b]"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Navigation menu"
+                            className="fixed inset-x-0 top-16 bottom-0 z-45 overflow-y-auto overscroll-contain border-t border-zinc-200 bg-white px-5 pb-10 pt-5 sm:top-[72px] dark:border-white/[0.07] dark:bg-[#0b0b0b]"
                         >
                         {/* Account card */}
                         {currentUser ? (
@@ -583,7 +631,7 @@ export default function Navbar({ activeTab, showTokens = true, position = "stick
                             </div>
                         )}
 
-                        <div className="mb-5 xl:hidden"><RegionSelector mobile /></div>
+                        {!headerRegion && <div className="mb-5"><RegionSelector mobile /></div>}
                         {/* Primary links */}
                         <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-500">
                             Browse

@@ -477,6 +477,9 @@ const requireOrderAccess = async (user, orderId) => {
 // DEALER: confirm purchase request & commit stock
 // =====================================================
 const dealerConfirm = async (req, res) => {
+    let reserved = false;
+    let confirmed = false;
+    let stockReservation;
     try {
         const { error, order, status } = await requireOrderAccess(req.user, req.params.id);
         if (error) return res.status(status).json({ success: false, message: error });
@@ -502,7 +505,7 @@ const dealerConfirm = async (req, res) => {
         }
 
         if (stockItem) {
-            await Dealership.findOneAndUpdate(
+            const stockCommitted = await Dealership.findOneAndUpdate(
                 {
                     _id: order.dealership,
                     stock: {
@@ -512,24 +515,61 @@ const dealerConfirm = async (req, res) => {
                         },
                     },
                 },
-                { $inc: { "stock.$.quantity": -(order.quantity || 1) } }
+                { $inc: { "stock.$.quantity": -(order.quantity || 1) } },
+                { new: true }
             );
+            if (!stockCommitted) {
+                return res.status(409).json({
+                    success: false,
+                    message: "Showroom stock changed before this request could be confirmed. Refresh and try again.",
+                });
+            }
+            reserved = true;
+            stockReservation = {
+                dealership: order.dealership,
+                motorcycle: order.motorcycle,
+                quantity: order.quantity || 1,
+            };
         }
 
-        order.orderStatus = "confirmed";
-        pushHistory(order, "confirmed", req.user._id, "Dealership confirmed purchase request; vehicle reserved");
-        await order.save();
+        const confirmedOrder = await Order.findOneAndUpdate(
+            { _id: order._id, orderStatus: "pending_dealership_confirmation" },
+            {
+                $set: { orderStatus: "confirmed" },
+                $push: {
+                    statusHistory: {
+                        status: "confirmed",
+                        at: new Date(),
+                        by: req.user._id,
+                        note: "Dealership confirmed purchase request; vehicle reserved",
+                    },
+                },
+            },
+            { new: true }
+        );
+        if (!confirmedOrder) {
+            if (reserved) {
+                await releaseStock(stockReservation.dealership, stockReservation.motorcycle, stockReservation.quantity);
+                reserved = false;
+            }
+            return res.status(409).json({ success: false, message: "This purchase request has already changed. Refresh and try again." });
+        }
+        confirmed = true;
 
         await createNotification(
-            order.user,
+            confirmedOrder.user,
             "order",
             "Purchase request confirmed",
-            `Your purchase request ${order.orderNumber} has been confirmed by the dealership. Please visit the showroom to complete payment.`
+            `Your purchase request ${confirmedOrder.orderNumber} has been confirmed by the dealership. Please visit the showroom to complete payment.`
         );
-        mailOrder(order._id, "confirmed");
+        mailOrder(confirmedOrder._id, "confirmed");
 
         res.status(200).json({ success: true, message: "Purchase request confirmed successfully." });
     } catch (error) {
+        if (reserved && !confirmed) {
+            await releaseStock(stockReservation.dealership, stockReservation.motorcycle, stockReservation.quantity)
+                .catch((releaseError) => console.error("Could not restore stock after failed order confirmation:", releaseError.message));
+        }
         console.error("Dealer confirm error:", error.message);
         res.status(500).json({ success: false, message: "Could not confirm purchase request." });
     }
