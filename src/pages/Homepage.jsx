@@ -23,6 +23,7 @@ import Logo from "../components/Logo";
 import Navbar from "../components/Navbar";
 import { useRole } from "../context/RoleContext";
 import { useRegion } from "../context/RegionContext";
+import { API_BASE } from "../services/api";
 
 const AdvertisementSlider = lazy(() => import("../components/AdvertisementSlider"));
 const LatestUpdatesSection = lazy(() => import("../components/LatestUpdatesSection"));
@@ -58,7 +59,7 @@ function DeferredSection({ children, minHeight = "18rem" }) {
 // from MongoDB at runtime. This map only holds icons and
 // taglines per category name — no motorcycle data.
 // ==============================
-const BIKES_API = "/api/motorcycles";
+const BIKES_API = `${API_BASE}/motorcycles`;
 
 const CATEGORY_META = {
     Sports: { icon: "🏁", description: "Fast & performance focused" },
@@ -330,7 +331,7 @@ function Homepage() {
     useEffect(() => {
         const controller = new AbortController();
         const params = new URLSearchParams(region);
-        fetch(`/api/homepage?${params.toString()}`, { signal: controller.signal })
+        fetch(`${API_BASE}/homepage?${params.toString()}`, { signal: controller.signal })
             .then((res) => (res.ok ? res.json() : { configured: false, sections: [] }))
             .then((data) => setHomeConfig(data))
             .catch((error) => {
@@ -413,7 +414,7 @@ function Homepage() {
 
             try {
                 const response = await fetch(
-                    `/api/motorcycles?search=${encodeURIComponent(query)}&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}&page=1&limit=6`,
+                    `${BIKES_API}?search=${encodeURIComponent(query)}&state=${encodeURIComponent(region.state)}&city=${encodeURIComponent(region.city)}&page=1&limit=6`,
                     { signal: controller.signal }
                 );
 

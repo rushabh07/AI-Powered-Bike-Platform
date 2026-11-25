@@ -52,10 +52,10 @@ const RegionalPricingManager = lazy(() => import("../components/admin/RegionalPr
 const RoleManagementSection = lazy(() => import("../components/admin/RoleManagementSection"));
 const AdminCommissionSection = lazy(() => import("../components/admin/AdminCommissionSection"));
 import { useRole } from "../context/RoleContext";
-import { getAdminSubscriptionStats } from "../services/api";
+import { getAdminSubscriptionStats, API_BASE } from "../services/api";
 
-const API_URL = "/api/motorcycles";
-const ADMIN_API = "/api/admin";
+const API_URL = `${API_BASE}/motorcycles`;
+const ADMIN_API = `${API_BASE}/admin`;
 
 const SectionFallback = () => (
     <div className="min-h-48 animate-pulse rounded-2xl border border-white/5 bg-white/[0.02]" aria-label="Loading section" />
@@ -112,7 +112,7 @@ const EnquiriesSection = () => {
             if (statusFilter) qs.set("status", statusFilter);
             if (typeFilter) qs.set("enquiryType", typeFilter);
             const token = localStorage.getItem("token");
-            const res = await fetch(`/api/bike-enquiries/admin/all${qs.toString() ? `?${qs.toString()}` : ""}`, {
+            const res = await fetch(`${API_BASE}/bike-enquiries/admin/all${qs.toString() ? `?${qs.toString()}` : ""}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
@@ -130,7 +130,7 @@ const EnquiriesSection = () => {
     const updateStatus = async (id, status) => {
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`/api/bike-enquiries/admin/${id}/status`, {
+            const res = await fetch(`${API_BASE}/bike-enquiries/admin/${id}/status`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ status }),
@@ -237,7 +237,7 @@ const MessagesSection = () => {
         setError("");
         try {
             const token = localStorage.getItem("token");
-            const res = await fetch(`/api/contact/admin/messages?page=${page}&limit=15`, {
+            const res = await fetch(`${API_BASE}/contact/admin/messages?page=${page}&limit=15`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
@@ -320,7 +320,7 @@ const DealershipsSection = () => {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch("/api/dealerships/admin/all", { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+            const res = await fetch(`${API_BASE}/dealerships/admin/all`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to load dealerships");
             setItems(data.dealerships || []);
@@ -346,7 +346,7 @@ const DealershipsSection = () => {
                 brands: form.brands.split(",").map((b) => b.trim()).filter(Boolean),
                 timeSlots: form.timeSlots.split(",").map((s) => s.trim()).filter(Boolean),
             };
-            const res = await fetch(editing ? `/api/dealerships/${editing._id}` : "/api/dealerships", {
+            const res = await fetch(editing ? `${API_BASE}/dealerships/${editing._id}` : `${API_BASE}/dealerships`, {
                 method: editing ? "PUT" : "POST",
                 headers: authHeaders(),
                 body: JSON.stringify(payload),
@@ -365,7 +365,7 @@ const DealershipsSection = () => {
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this dealership?")) return;
         try {
-            const res = await fetch(`/api/dealerships/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+            const res = await fetch(`${API_BASE}/dealerships/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to delete");
             await load();
@@ -440,7 +440,7 @@ const DealershipsSection = () => {
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                 <button onClick={async () => {
                                     try {
-                                        await fetch(`/api/dealerships/${d._id}`, {
+                                        await fetch(`${API_BASE}/dealerships/${d._id}`, {
                                             method: "PUT",
                                             headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
                                             body: JSON.stringify({ approved: !d.approved }),
@@ -1979,7 +1979,7 @@ const AdminDashboard = () => {
                         {activeTab === "colors" && (
                             <ColorsSection
                                 motorcycles={motorcycles}
-                                apiUrl="/api/motorcycles"
+                                apiUrl={API_URL}
                             />
                         )}
 

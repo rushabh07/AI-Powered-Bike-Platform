@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { API_BASE } from "../services/api";
 
 const AUTOPLAY_MS = 3500;
 
@@ -27,7 +28,7 @@ const AdvertisementSlider = () => {
         let cancelled = false;
         (async () => {
             try {
-                const res = await fetch("/api/advertisements");
+                const res = await fetch(`${API_BASE}/advertisements`);
                 const data = await res.json();
                 if (!cancelled && data.success) setAds(data.advertisements || []);
             } catch {
@@ -61,7 +62,7 @@ const AdvertisementSlider = () => {
         const ad = ads[index];
         if (!ad || seenImpressions.current.has(ad._id)) return;
         seenImpressions.current.add(ad._id);
-        fetch(`/api/advertisements/${ad._id}/impression`, { method: "POST" }).catch(() => {});
+        fetch(`${API_BASE}/advertisements/${ad._id}/impression`, { method: "POST" }).catch(() => {});
     }, [index, ads]);
 
     // Keyboard navigation
@@ -86,7 +87,7 @@ const AdvertisementSlider = () => {
 
     const openAd = (ad) => {
         if (!ad || !isSafeTarget(ad.targetUrl)) return;
-        fetch(`/api/advertisements/${ad._id}/click`, { method: "POST" }).catch(() => {});
+        fetch(`${API_BASE}/advertisements/${ad._id}/click`, { method: "POST" }).catch(() => {});
         const t = ad.targetUrl.trim();
         if (t.startsWith("/")) navigate(t);
         else window.open(t, "_blank", "noopener,noreferrer");

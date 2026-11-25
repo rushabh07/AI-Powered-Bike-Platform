@@ -30,8 +30,9 @@ import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import UpgradeModal from "../components/UpgradeModal";
 import { useRole } from "../context/RoleContext";
+import { API_BASE } from "../services/api";
 
-const CHATS_API = "/api/chats";
+const CHATS_API = `${API_BASE}/chats`;
 const ACTIVE_CHAT_KEY = "motoai_active_chat";
 
 const QUICK_SUGGESTIONS = [
@@ -385,7 +386,7 @@ export default function AIAdvisor() {
             const token = localStorage.getItem("token");
             if (!token) return;
             const response = await fetch(
-                "/api/ai-tokens",
+                `${API_BASE}/ai-tokens`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,

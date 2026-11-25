@@ -1,5 +1,5 @@
-const BACKEND_URI = (import.meta.env.VITE_BACKEND_URI || "").replace(/\/+$/, "");
-const API_BASE = `${BACKEND_URI}/api`;
+export const BACKEND_URI = (import.meta.env.VITE_BACKEND_URI || "").replace(/\/+$/, "");
+export const API_BASE = `${BACKEND_URI}/api`;
 
 export const getAuthHeaders = () => {
     const token = localStorage.getItem("token");

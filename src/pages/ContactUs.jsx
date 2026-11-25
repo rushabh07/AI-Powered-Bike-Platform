@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { Send, CheckCircle, AlertTriangle, Loader2, Copy } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
-
-const API_BASE = "/api";
+import { API_BASE } from "../services/api";
 
 const CATEGORIES = [
     { id: "general", label: "General Inquiry" },

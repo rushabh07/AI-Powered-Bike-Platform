@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import { useRegion } from "../context/RegionContext";
+import { API_BASE } from "../services/api";
 import {
     Search,
     SlidersHorizontal,
@@ -18,7 +19,7 @@ import {
     ShoppingCart,
 } from "lucide-react";
 
-const API = "/api/motorcycles";
+const API = `${API_BASE}/motorcycles`;
 
 const categories = [
     "All",

@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, API_BASE } from "./api";
 
 const qs = (params = {}) => {
     const q = new URLSearchParams();
@@ -57,7 +57,7 @@ export const getPanelAudit = (params) => apiFetch(`/provider/panel/audit${qs(par
 
 export const downloadPanelReport = async (type) => {
     const token = localStorage.getItem("token");
-    const response = await fetch(`/api/provider/panel/reports?type=${type}`, {
+    const response = await fetch(`${API_BASE}/provider/panel/reports?type=${type}`, {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
     if (!response.ok) throw new Error("Failed to download report");

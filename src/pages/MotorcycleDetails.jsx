@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import Navbar from "../components/Navbar";
-import { getMotorcycleVariants } from "../services/api";
+import { getMotorcycleVariants, API_BASE } from "../services/api";
 import ReviewsSection from "../components/reviews/ReviewsSection";
 import RegionalPriceSummary from "../components/RegionalPriceSummary";
 import { useRegion } from "../context/RegionContext";
@@ -30,7 +30,7 @@ import {
     Store,
 } from "lucide-react";
 
-const API_URL = "/api/motorcycles";
+const API_URL = `${API_BASE}/motorcycles`;
 
 const MotorcycleDetails = () => {
     const { id } = useParams();

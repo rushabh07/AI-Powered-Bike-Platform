@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { PhoneCall, RefreshCw, Save, Bike, CalendarDays } from "lucide-react";
+import { API_BASE } from "../../services/api";
 
-const API = "/api";
+const API = API_BASE;
 const statuses = ["new", "contacted", "visit_scheduled", "negotiation", "converted", "rejected", "expired"];
 
 const DealershipReferrals = () => {

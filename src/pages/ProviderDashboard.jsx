@@ -34,8 +34,9 @@ import DealershipReports from "../components/dealership/DealershipReports";
 import DealershipReferrals from "../components/dealership/DealershipReferrals";
 import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
 import { useRole } from "../context/RoleContext";
+import { API_BASE } from "../services/api";
 
-const API_URL = "/api";
+const API_URL = API_BASE;
 
 const ProviderDashboard = () => {
     const navigate = useNavigate();

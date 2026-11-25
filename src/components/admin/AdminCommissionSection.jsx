@@ -16,8 +16,9 @@ import {
     Banknote,
     BarChart3,
 } from "lucide-react";
+import { API_BASE } from "../../services/api";
 
-const API = "/api";
+const API = API_BASE;
 
 const getToken = () => localStorage.getItem("token");
 

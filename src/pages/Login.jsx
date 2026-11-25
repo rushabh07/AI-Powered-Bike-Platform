@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
+import { API_BASE } from "../services/api";
 import {
     FaArrowLeft,
     FaRobot,
@@ -107,7 +108,7 @@ const Login = () => {
             setLoading(true);
 
             const response = await fetch(
-                "/api/auth/login",
+                `${API_BASE}/auth/login`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

@@ -16,6 +16,7 @@ import Navbar from "../components/Navbar";
 import BrandLogo from "../components/BrandLogo";
 import { useRegion } from "../context/RegionContext";
 import {
+    API_BASE,
     ApiError,
     searchMotorcycles,
     getAllMotorcycles,
@@ -286,7 +287,7 @@ export default function Compare() {
                 params.set("state", region.state);
                 params.set("city", region.city);
                 const res = await fetch(
-                    `/api/motorcycles?${params.toString()}`
+                    `${API_BASE}/motorcycles?${params.toString()}`
                 );
                 if (!res.ok) throw new Error("Search failed");
                 const data = await res.json();
