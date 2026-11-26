@@ -40,24 +40,29 @@ const NAV_LINKS = [
 const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#070708]";
 
+const readSessionUser = () => {
+    try {
+        if (!localStorage.getItem("token")) return null;
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        return user && typeof user === "object" ? user : null;
+    } catch {
+        return null;
+    }
+};
+
 export default function Navbar({ activeTab, position = "sticky", leading = null }) {
     const location = useLocation();
     const navigate = useNavigate();
     const { can, loading: permLoading } = useRole();
 
-    const [currentUser, setCurrentUser] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem("user") || "null");
-        } catch {
-            return null;
-        }
-    });
+    const [currentUser, setCurrentUser] = useState(readSessionUser);
 
     const [planStatus, setPlanStatus] = useState(null);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [wideNav, setWideNav] = useState(false);
     const [headerRegion, setHeaderRegion] = useState(false);
+    const [headerAuthActions, setHeaderAuthActions] = useState(false);
 
     const userMenuRef = useRef(null);
     const headerRowRef = useRef(null);
@@ -96,25 +101,18 @@ export default function Navbar({ activeTab, position = "sticky", leading = null 
         const refreshFromStorage = () => {
             queueMicrotask(() => {
                 if (!active) return;
-                try {
-                    const storedUser = JSON.parse(localStorage.getItem("user") || "null");
-                    setCurrentUser((current) =>
-                        JSON.stringify(current) === JSON.stringify(storedUser) ? current : storedUser
-                    );
-                } catch {
-                    setCurrentUser(null);
-                }
-                fetchStatus();
+                const storedUser = readSessionUser();
+                setCurrentUser((current) =>
+                    JSON.stringify(current) === JSON.stringify(storedUser) ? current : storedUser
+                );
+                if (localStorage.getItem("token")) fetchStatus();
+                else setPlanStatus(null);
             });
         };
         refreshFromStorage();
 
         const handleStorageOrSubUpdate = () => {
-            try {
-                setCurrentUser(JSON.parse(localStorage.getItem("user") || "null"));
-            } catch {
-                setCurrentUser(null);
-            }
+            setCurrentUser(readSessionUser());
             if (localStorage.getItem("token")) fetchStatus();
             else setPlanStatus(null);
         };
@@ -151,8 +149,10 @@ export default function Navbar({ activeTab, position = "sticky", leading = null 
             const width = entry.contentRect.width;
             const nextWideNav = width >= 1400;
             const nextHeaderRegion = width >= 1024;
+            const nextHeaderAuthActions = width >= 620;
             setWideNav((current) => current === nextWideNav ? current : nextWideNav);
             setHeaderRegion((current) => current === nextHeaderRegion ? current : nextHeaderRegion);
+            setHeaderAuthActions((current) => current === nextHeaderAuthActions ? current : nextHeaderAuthActions);
             if (nextWideNav) setMobileMenuOpen(false);
         });
         observer.observe(headerRow);
@@ -520,7 +520,7 @@ export default function Navbar({ activeTab, position = "sticky", leading = null 
                                 )}
                             </div>
                         ) : (
-                            <div className={`hidden items-center gap-2 ${wideNav ? "flex" : ""}`}>
+                            <div className={`${headerAuthActions ? "flex" : "hidden"} shrink-0 items-center gap-2`}>
                                 <Link
                                     to="/login"
                                     className={`flex items-center gap-1.5 rounded-xl border border-zinc-200 px-3.5 py-2 text-xs font-bold text-zinc-700 transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/20 dark:hover:text-white ${focusRing}`}
