@@ -1247,11 +1247,11 @@ const AdminDashboard = () => {
 
                 <aside
                     className={`
-                        fixed inset-y-0 left-0 z-50 w-72
+                        fixed inset-y-0 left-0 z-50 flex h-dvh w-72 max-h-dvh flex-col
                         border-r border-white/10
                         bg-[#0b0b0b]
                         transition-transform duration-300
-                        lg:static lg:translate-x-0
+                        lg:sticky lg:top-0 lg:self-start lg:translate-x-0
                         ${sidebarOpen
                             ? "translate-x-0"
                             : "-translate-x-full"
@@ -1295,7 +1295,7 @@ const AdminDashboard = () => {
 
                         {/* NAVIGATION */}
 
-                        <nav className="flex-1 space-y-2 px-4 py-6">
+                        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-6">
                             {[
                                 { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={19} /> },
                                 { id: "motorcycles", label: "Motorcycles", icon: <Bike size={19} />, permission: "motorcycles.manage" },

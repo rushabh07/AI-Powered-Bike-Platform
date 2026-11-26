@@ -576,7 +576,7 @@ const ProviderDashboard = () => {
                 </div>
 
                 {mobileMenu && (
-                    <div className="border-t border-zinc-800 p-4 bg-[#111113]">
+                    <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-zinc-800 bg-[#111113] p-4">
                         <div className="space-y-2">
                             <button
                                 type="button"
@@ -664,7 +664,7 @@ const ProviderDashboard = () => {
                 DESKTOP SIDEBAR
             ======================= */}
 
-            <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 bg-[#0d0d0f] border-r border-zinc-800 flex-col">
+            <aside className="fixed inset-y-0 left-0 hidden h-dvh w-72 flex-col border-r border-zinc-800 bg-[#0d0d0f] lg:flex">
                 {/* Logo */}
 
                 <div className="h-20 px-6 flex items-center border-b border-zinc-800">
@@ -722,7 +722,7 @@ const ProviderDashboard = () => {
 
                 {/* Navigation */}
 
-                <nav className="px-4 space-y-2 flex-1">
+                <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4">
                     <button
                         type="button"
                         onClick={() =>
