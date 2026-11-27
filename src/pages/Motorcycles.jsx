@@ -266,7 +266,7 @@ export default function Motorcycles() {
                     }}
                 />
 
-                <div className="relative mx-auto max-w-7xl px-5 py-14 md:px-6 md:py-20">
+                <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-5 sm:py-14 md:px-6 md:py-20">
 
                     {/* BACK BUTTON */}
                     <Link
@@ -290,7 +290,7 @@ export default function Motorcycles() {
                                 className="text-orange-400"
                             />
 
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-orange-400 sm:text-[11px] sm:tracking-[0.2em]">
                                 AI Motorcycle Discovery
                             </span>
 
@@ -309,7 +309,7 @@ export default function Motorcycles() {
 
                     </h1>
 
-                    <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-400 md:text-lg">
+                    <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-400 sm:mt-6 sm:text-base md:text-lg">
                         Explore motorcycles based on your budget,
                         riding style, performance and preferences.
                         Find the machine that fits your journey.
@@ -318,7 +318,7 @@ export default function Motorcycles() {
                     {/* =====================================
                         SEARCH
                     ===================================== */}
-                    <div className="mt-9 max-w-4xl">
+                    <div className="mt-7 max-w-4xl sm:mt-9">
 
                         <div className="group flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-2 shadow-2xl shadow-black/20 backdrop-blur-xl transition-all duration-300 focus-within:border-orange-500/40 focus-within:bg-white/[0.06] sm:flex-row sm:items-center">
 
@@ -404,21 +404,21 @@ export default function Motorcycles() {
             {/* =====================================
                 MAIN
             ===================================== */}
-            <main className="mx-auto max-w-7xl px-5 py-10 md:px-6 md:py-12">
+            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 sm:py-10 md:px-6 md:py-12">
 
                 {/* TOP CONTROLS */}
-                <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                <div className="mb-6 flex min-w-0 flex-col justify-between gap-4 sm:mb-8 sm:gap-5 lg:flex-row lg:items-center">
 
                     <div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
 
-                            <h2 className="text-2xl font-black">
+                            <h2 className="text-xl font-black sm:text-2xl">
                                 Explore Motorcycles
                             </h2>
 
                             {search && (
-                                <span className="rounded-full bg-orange-500/10 px-3 py-1 text-xs font-semibold text-orange-500">
+                                <span className="max-w-full truncate rounded-full bg-orange-500/10 px-3 py-1 text-xs font-semibold text-orange-500">
                                     "{search}"
                                 </span>
                             )}
@@ -433,7 +433,7 @@ export default function Motorcycles() {
 
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex w-full min-w-0 gap-2 sm:gap-3 lg:w-auto">
 
                         {/* MOBILE FILTER */}
                         <button
@@ -443,14 +443,14 @@ export default function Motorcycles() {
                                     !showFilters
                                 )
                             }
-                            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium transition hover:border-orange-500/30 hover:bg-orange-500/10 lg:hidden"
+                            className="flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-medium transition hover:border-orange-500/30 hover:bg-orange-500/10 sm:flex-none sm:px-4 lg:hidden"
                         >
                             <SlidersHorizontal size={17} />
                             Filters
                         </button>
 
                         {/* SORT */}
-                        <div className="relative">
+                        <div className="relative min-w-0 flex-1 sm:flex-none">
 
                             <select
                                 value={sort}
@@ -458,7 +458,7 @@ export default function Motorcycles() {
                                 onChange={(e) =>
                                     setSort(e.target.value)
                                 }
-                                className="appearance-none rounded-xl border border-white/10 bg-[#111113] px-5 py-3 pr-11 text-sm outline-none transition hover:border-white/20 focus:border-orange-500/50"
+                                className="w-full appearance-none rounded-xl border border-white/10 bg-[#111113] px-3 py-3 pr-9 text-xs outline-none transition hover:border-white/20 focus:border-orange-500/50 sm:w-auto sm:px-5 sm:pr-11 sm:text-sm"
                             >
                                 <option value="default">
                                     Sort: Recommended
@@ -589,7 +589,7 @@ export default function Motorcycles() {
                 {/* =====================================
                     CONTENT
                 ===================================== */}
-                <div className="grid gap-8 lg:grid-cols-[250px_1fr]">
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8">
 
                     {/* =====================================
                         FILTERS
@@ -709,7 +709,7 @@ export default function Motorcycles() {
                     {/* =====================================
                         BIKES
                     ===================================== */}
-                    <section>
+                    <section className="min-w-0">
 
                         {/* ACTIVE FILTER CHIPS */}
                         {(category !== "All" || brand !== "All" || maxPrice < 1000000 || minEngine > 0 || !!search.trim()) && (
@@ -758,18 +758,18 @@ export default function Motorcycles() {
                             BRAND FILTER (dynamic from API)
                         ===================================== */}
                         {brandOptions.length > 0 && (
-                            <div className="mb-8">
+                            <div className="mb-6 sm:mb-8">
                                 <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-600">
                                     Shop by Brand
                                 </p>
 
-                                <div className="flex gap-3 overflow-x-auto pb-3">
+                                <div className="flex snap-x snap-mandatory touch-pan-x gap-2 overflow-x-auto overscroll-x-contain pb-3 sm:gap-3">
                                     {/* ALL BRANDS */}
                                     <button
                                         onClick={() =>
                                             setBrand("All")
                                         }
-                                        className={`flex w-24 shrink-0 flex-col items-center gap-2 rounded-2xl border p-3 transition ${brand === "All"
+                                        className={`flex w-24 shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border p-3 transition ${brand === "All"
                                             ? "border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/10"
                                             : "border-white/10 bg-white/[0.025] hover:border-orange-500/40 hover:bg-orange-500/5"
                                             }`}
@@ -802,7 +802,7 @@ export default function Motorcycles() {
                                                             item.brand
                                                         )
                                                     }
-                                                    className={`flex w-24 shrink-0 flex-col items-center gap-2 rounded-2xl border p-3 transition ${isActive
+                                                    className={`flex w-24 shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border p-3 transition ${isActive
                                                         ? "border-orange-500 bg-orange-500/10 shadow-lg shadow-orange-500/10"
                                                         : "border-white/10 bg-white/[0.025] hover:border-orange-500/40 hover:bg-orange-500/5"
                                                         }`}
