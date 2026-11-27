@@ -51,6 +51,7 @@ const MotorcycleVariantManager = lazy(() => import("../components/admin/Motorcyc
 const RegionalPricingManager = lazy(() => import("../components/admin/RegionalPricingManager"));
 const RoleManagementSection = lazy(() => import("../components/admin/RoleManagementSection"));
 const AdminCommissionSection = lazy(() => import("../components/admin/AdminCommissionSection"));
+const ProvidersSection = lazy(() => import("../components/admin/ProvidersSection"));
 import { useRole } from "../context/RoleContext";
 import { getAdminSubscriptionStats, API_BASE } from "../services/api";
 
@@ -428,6 +429,9 @@ const DealershipsSection = () => {
                                     <p className="font-bold">{d.name}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{d.city} • {d.address}</p>
                                     <p className="text-xs text-zinc-500 mt-1">{d.phone} • {d.openingHours}</p>
+                                    <p className="text-xs text-zinc-400 mt-1">
+                                        Owner: {d.owner ? `${d.owner.name || "Provider"} (${d.owner.email})` : "Unassigned"}
+                                    </p>
                                     <div className="mt-1 flex flex-wrap gap-1">
                                         {!d.approved && <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold text-yellow-400 border border-yellow-500/20">Unapproved</span>}
                                         {d.brands && d.brands.length > 0 && d.brands.slice(0, 3).map((b) => (
@@ -1302,6 +1306,7 @@ const AdminDashboard = () => {
                                 { id: "colors", label: "Colors", icon: <Palette size={19} />, permission: "motorcycles.manage" },
                                 { id: "enquiries", label: "Bike Enquiries", icon: <ClipboardList size={19} />, permission: "orders.manage" },
                                 { id: "dealerships", label: "Dealerships", icon: <Store size={19} />, permission: "dealerships.manage" },
+                                { id: "providers", label: "Providers", icon: <Users size={19} />, permission: "users.manage" },
                                 { id: "orders", label: "Orders", icon: <Package size={19} />, permission: "orders.manage" },
                                 { id: "commissions", label: "Dealership Commissions", icon: <Coins size={19} /> },
                                 { id: "reviews", label: "Reviews", icon: <Star size={19} />, permission: "reviews.manage" },
@@ -1400,6 +1405,7 @@ const AdminDashboard = () => {
                                     {activeTab === "colors" && "Colors"}
                                     {activeTab === "enquiries" && "Bike Enquiries"}
                                     {activeTab === "dealerships" && "Dealerships"}
+                                    {activeTab === "providers" && "Providers"}
                                     {activeTab === "orders" && "Orders"}
                                     {activeTab === "commissions" && "Dealership Commissions"}
                                     {activeTab === "reviews" && "Reviews"}
@@ -1420,6 +1426,7 @@ const AdminDashboard = () => {
                                     {activeTab === "colors" && "Manage color variations for each motorcycle."}
                                     {activeTab === "enquiries" && "Review test rides and purchase enquiries."}
                                     {activeTab === "dealerships" && "Manage authorized dealerships."}
+                                    {activeTab === "providers" && "Create, edit, and assign dealerships to provider accounts."}
                                     {activeTab === "orders" && "Online and offline motorcycle orders."}
                                     {activeTab === "commissions" && "Review referred dealership sales, commission rules, and recorded payouts."}
                                     {activeTab === "reviews" && "Moderate user reviews and verified-purchase ratings."}
@@ -1991,6 +1998,10 @@ const AdminDashboard = () => {
                         {/* DEALERSHIPS TAB */}
                         {activeTab === "dealerships" && (
                             <DealershipsSection />
+                        )}
+
+                        {activeTab === "providers" && (
+                            <Suspense fallback={<SectionFallback />}><ProvidersSection /></Suspense>
                         )}
 
                         {/* ORDERS TAB */}

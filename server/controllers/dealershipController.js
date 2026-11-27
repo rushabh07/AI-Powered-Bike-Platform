@@ -1,7 +1,20 @@
 const mongoose = require("mongoose");
 const Dealership = require("../models/Dealership");
+const User = require("../models/User");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const resolveValidOwner = async (ownerId) => {
+    if (ownerId === undefined) return { skip: true };
+    if (ownerId === null || ownerId === "") return { owner: null };
+    if (!isValidId(ownerId)) return { error: "Invalid provider/owner ID.", status: 400 };
+    const user = await User.findById(ownerId).select("_id role").lean();
+    if (!user) return { error: "Selected owner user does not exist.", status: 404 };
+    if (!["provider", "admin"].includes(user.role)) {
+        return { error: "Dealership owner must be a provider or admin account.", status: 400 };
+    }
+    return { owner: user._id };
+};
 
 const getDealershipsByCity = async (req, res) => {
     try {
@@ -23,7 +36,10 @@ const getDealershipsByCity = async (req, res) => {
 
 const getAllDealerships = async (req, res) => {
     try {
-        const dealerships = await Dealership.find().sort({ city: 1, name: 1 }).lean();
+        const dealerships = await Dealership.find()
+            .populate({ path: "owner", select: "name email phone role" })
+            .sort({ city: 1, name: 1 })
+            .lean();
         res.status(200).json({ success: true, count: dealerships.length, dealerships });
     } catch (error) {
         console.error("Get all dealerships error:", error.message);
@@ -33,7 +49,7 @@ const getAllDealerships = async (req, res) => {
 
 const createDealership = async (req, res) => {
     try {
-        const { name, city, address, phone, email, openingHours, brands, googleMapsUrl, timeSlots, stockStatus, approved, isActive } = req.body;
+        const { name, city, address, phone, email, openingHours, brands, googleMapsUrl, timeSlots, stockStatus, approved, isActive, owner } = req.body;
         if (!name || !String(name).trim()) {
             return res.status(400).json({ success: false, message: "Name is required." });
         }
@@ -45,6 +61,10 @@ const createDealership = async (req, res) => {
         }
         if (!phone || !String(phone).trim()) {
             return res.status(400).json({ success: false, message: "Phone is required." });
+        }
+        const ownerResolution = await resolveValidOwner(owner);
+        if (ownerResolution.error) {
+            return res.status(ownerResolution.status).json({ success: false, message: ownerResolution.error });
         }
         const dealership = await Dealership.create({
             name: String(name).trim(),
@@ -59,6 +79,7 @@ const createDealership = async (req, res) => {
             stockStatus: ["in_stock", "limited", "out_of_stock", "unknown"].includes(stockStatus) ? stockStatus : "unknown",
             approved: approved !== false,
             isActive: isActive !== false,
+            ...(ownerResolution.skip ? {} : { owner: ownerResolution.owner }),
         });
         res.status(201).json({ success: true, message: "Dealership created.", dealership });
     } catch (error) {
@@ -77,9 +98,16 @@ const updateDealership = async (req, res) => {
         if (!dealership) {
             return res.status(404).json({ success: false, message: "Dealership not found." });
         }
+        const ownerResolution = await resolveValidOwner(req.body.owner);
+        if (ownerResolution.error) {
+            return res.status(ownerResolution.status).json({ success: false, message: ownerResolution.error });
+        }
         const allowed = ["name", "city", "address", "phone", "email", "openingHours", "brands", "googleMapsUrl", "timeSlots", "stockStatus", "approved", "isActive"];
         for (const key of allowed) {
             if (req.body[key] !== undefined) dealership[key] = req.body[key];
+        }
+        if (!ownerResolution.skip) {
+            dealership.owner = ownerResolution.owner;
         }
         await dealership.save();
         res.status(200).json({ success: true, message: "Dealership updated.", dealership });

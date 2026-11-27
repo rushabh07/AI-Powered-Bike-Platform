@@ -177,20 +177,22 @@ const Button = ({
 // ==============================
 const RecommendationCard = ({ bike, navigate }) => {
     const { region } = useRegion();
+    const [imgError, setImgError] = useState(false);
     const isEV = String(bike.category || "").toLowerCase() === "electric";
 
-    const displayPrice = bike.regionalPricing?.onRoadPrice ?? bike.price;
-    const priceText = typeof displayPrice === "number"
-        ? `₹${(displayPrice / 100000).toFixed(2)} Lakh`
-        : displayPrice;
+    const displayPrice = bike.regionalPricing?.onRoadPrice ?? bike.price ?? bike.exShowroomPrice;
+    const numericPrice = Number(displayPrice);
+    const priceText = Number.isFinite(numericPrice) && numericPrice > 0
+        ? `₹${(numericPrice / 100000).toFixed(2)} Lakh`
+        : "Price unavailable";
 
     const engineText = isEV
         ? bike.range ? `${bike.range} km range` : "Electric"
-        : typeof bike.engine === "number" ? `${bike.engine} CC` : bike.engine;
+        : bike.engine ? `${bike.engine} CC` : "N/A";
 
     const mileageText = isEV
-        ? bike.batteryCapacity ? `${bike.batteryCapacity} kWh` : "Electric"
-        : typeof bike.mileage === "number" ? `${bike.mileage} KM/L` : bike.mileage;
+        ? bike.batteryCapacity ? `${bike.batteryCapacity} kWh` : "N/A"
+        : bike.mileage ? `${bike.mileage} KM/L` : "N/A";
 
     const liveAvg = bike.reviewSummary?.totalReviews > 0
         ? Number(bike.reviewSummary.averageRating)
@@ -201,22 +203,28 @@ const RecommendationCard = ({ bike, navigate }) => {
             ? `${Math.min(99, Math.round((liveAvg / 5) * 100))}%`
             : "NEW");
 
-    const imageSrc = bike.image || bike.images?.[0]?.url || "";
+    const imageSrc = (
+        bike.image ||
+        bike.images?.[0]?.url ||
+        bike.colors?.find((c) => c?.image)?.image ||
+        ""
+    ).trim();
 
     return (
-    <div className="group bg-[#151515] border border-gray-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition">
-        <div className="relative h-56 overflow-hidden">
-            {imageSrc ? (
+    <div className="group flex h-full flex-col bg-[#151515] border border-gray-800 rounded-2xl overflow-hidden hover:border-orange-500/50 transition">
+        <div className="relative h-56 shrink-0 overflow-hidden bg-[#0d0d0d]">
+            {imageSrc && !imgError ? (
                 <img
                     src={imageSrc}
-                    alt={bike.name}
+                    alt={bike.name || "Motorcycle"}
                     loading="lazy"
                     decoding="async"
+                    onError={() => setImgError(true)}
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                 />
             ) : (
                 <div className="w-full h-full flex items-center justify-center bg-[#0d0d0d]">
-                    <FaMotorcycle className="text-orange-500 text-5xl" />
+                    <FaMotorcycle className="text-orange-500 text-5xl" aria-hidden="true" />
                 </div>
             )}
 
@@ -225,8 +233,9 @@ const RecommendationCard = ({ bike, navigate }) => {
             </div>
 
             <button
+                type="button"
                 onClick={() => navigate("/login")}
-                aria-label={`Save ${bike.name} to wishlist`}
+                aria-label={`Save ${bike.name || "motorcycle"} to wishlist`}
                 aria-pressed="false"
                 className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center hover:bg-orange-500 hover:text-black transition"
             >
@@ -234,51 +243,51 @@ const RecommendationCard = ({ bike, navigate }) => {
             </button>
         </div>
 
-        <div className="p-6">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-orange-500 text-xs font-semibold">
-                        {bike.category}
+        <div className="flex flex-1 flex-col p-6">
+            <div className="flex justify-between items-start gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-orange-500 text-xs font-semibold truncate">
+                        {[bike.brand, bike.category].filter(Boolean).join(" • ") || "Motorcycle"}
                     </p>
 
-                    <h3 className="text-xl font-bold mt-1">
-                        {bike.name}
+                    <h3 className="text-xl font-bold mt-1 truncate">
+                        {bike.name || "Untitled Model"}
                     </h3>
                 </div>
 
                 {bike.reviewSummary?.totalReviews > 0 ? (
-                    <span className="flex items-center gap-1 text-yellow-400 text-sm">
+                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-yellow-400 text-sm">
                         <FaStar /> {Number(bike.reviewSummary.averageRating).toFixed(1)} ({bike.reviewSummary.totalReviews})
                     </span>
                 ) : (
-                    <span className="text-xs text-zinc-500">No reviews yet</span>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500">No reviews yet</span>
                 )}
             </div>
 
             <p className="text-2xl font-black mt-5">
                 {priceText}
             </p>
-            <p className={`mt-0.5 text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
+            <p className={`mt-0.5 truncate text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
                 {bike.regionalPricing?.label || `Estimated in ${region.city}`}
             </p>
 
             <div className="grid grid-cols-2 gap-3 mt-5">
-                <div className="bg-[#0d0d0d] rounded-lg p-3">
+                <div className="min-w-0 bg-[#0d0d0d] rounded-lg p-3">
                     <p className="text-xs text-gray-400">
                         {isEV ? "Range" : "Engine"}
                     </p>
 
-                    <p className="font-semibold mt-1">
+                    <p className="font-semibold mt-1 truncate">
                         {engineText}
                     </p>
                 </div>
 
-                <div className="bg-[#0d0d0d] rounded-lg p-3">
+                <div className="min-w-0 bg-[#0d0d0d] rounded-lg p-3">
                     <p className="text-xs text-gray-400">
                         {isEV ? "Battery" : "Mileage"}
                     </p>
 
-                    <p className="font-semibold mt-1">
+                    <p className="font-semibold mt-1 truncate">
                         {mileageText}
                     </p>
                 </div>
@@ -296,7 +305,7 @@ const RecommendationCard = ({ bike, navigate }) => {
                 </p>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 mt-auto pt-5">
                 <Button
                     primary
                     onClick={() => navigate(bike._id ? `/motorcycles/${bike._id}` : "/motorcycles")}
@@ -306,8 +315,8 @@ const RecommendationCard = ({ bike, navigate }) => {
                 </Button>
 
                 <Button
-                    onClick={() => navigate("/compare")}
-                    aria-label={`Compare ${bike.name}`}
+                    onClick={() => navigate(bike._id ? `/compare?id=${bike._id}` : "/compare")}
+                    aria-label={`Compare ${bike.name || "motorcycle"}`}
                     className="w-12 px-0 flex items-center justify-center"
                 >
                     <FaExchangeAlt aria-hidden="true" />
@@ -632,23 +641,21 @@ function Homepage() {
                                                                     }
                                                                 </p>
 
-                                                                <p className="text-xs text-gray-400 mt-1">
-                                                                    {
-                                                                        bike.brand
-                                                                    }{" "}
-                                                                    •{" "}
-                                                                    {
-                                                                        bike.category
-                                                                    }{" "}
-                                                                    •{" "}
-                                                                    {
-                                                                        bike.engine
-                                                                    }{" "}
-                                                                    CC
+                                                                <p className="text-xs text-gray-400 mt-1 truncate">
+                                                                    {[
+                                                                        bike.brand,
+                                                                        bike.category,
+                                                                        bike.engine ? `${bike.engine} CC` : null,
+                                                                    ].filter(Boolean).join(" • ")}
                                                                 </p>
 
                                                                 <p className="text-xs text-orange-500 mt-1 font-semibold">
-                                                                    ₹{((bike.regionalPricing?.onRoadPrice ?? bike.price) / 100000).toFixed(2)} Lakh on-road
+                                                                    {(() => {
+                                                                        const p = Number(bike.regionalPricing?.onRoadPrice ?? bike.price);
+                                                                        return Number.isFinite(p) && p > 0
+                                                                            ? `₹${(p / 100000).toFixed(2)} Lakh on-road`
+                                                                            : "Price unavailable";
+                                                                    })()}
                                                                 </p>
                                                                 <p className={`text-[10px] ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
                                                                     {bike.regionalPricing?.label || `Estimated in ${region.city}`}

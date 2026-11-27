@@ -99,13 +99,26 @@ const getOverview = async (req, res) => {
     }
 };
 
+const isDealershipManagerOrOwner = (dealership, user) => {
+    if (!dealership || !user) return false;
+    if (user.role === "admin") return true;
+    if (dealership.owner && String(dealership.owner) === String(user._id)) return true;
+    return (dealership.staff || []).some(
+        (s) => String(s.user?._id || s.user) === String(user._id) && s.role === "manager"
+    );
+};
+
 // =====================================================
 // DEALERSHIPS (owner-scoped)
 // =====================================================
 const listMyDealerships = async (req, res) => {
     try {
         const ids = await scopedDealerships(req.user);
-        const list = await Dealership.find({ _id: { $in: ids } }).sort({ name: 1 }).lean();
+        const list = await Dealership.find({ _id: { $in: ids } })
+            .populate({ path: "owner", select: "name email phone" })
+            .populate({ path: "staff.user", select: "name email phone role" })
+            .sort({ name: 1 })
+            .lean();
         res.status(200).json({ success: true, count: list.length, dealerships: list });
     } catch (error) {
         console.error("List my dealerships error:", error.message);
@@ -146,12 +159,19 @@ const updateMyDealership = async (req, res) => {
     try {
         const d = await requireDealershipAccess(req.user, req.params.dealershipId);
         if (!d) return res.status(404).json({ success: false, message: "Dealership not found." });
+        if (!isDealershipManagerOrOwner(d, req.user)) {
+            return res.status(403).json({ success: false, message: "Only the dealership owner or manager can update dealership details." });
+        }
         const allowed = ["name", "city", "address", "phone", "email", "openingHours", "brands", "googleMapsUrl", "timeSlots", "stockStatus", "showroomImages"];
         if (req.user.role === "admin") allowed.push("approved", "isActive", "owner");
         for (const k of allowed) {
             if (req.body[k] !== undefined) d[k] = req.body[k];
         }
         await d.save();
+        await d.populate([
+            { path: "owner", select: "name email phone" },
+            { path: "staff.user", select: "name email phone role" },
+        ]);
         audit(req.user._id, "dealership.update", "Dealership", d._id, d._id, d.name);
         res.status(200).json({ success: true, message: "Dealership updated.", dealership: d });
     } catch (error) {
@@ -164,15 +184,22 @@ const addStaff = async (req, res) => {
     try {
         const d = await requireDealershipAccess(req.user, req.params.dealershipId);
         if (!d) return res.status(404).json({ success: false, message: "Dealership not found." });
+        if (!isDealershipManagerOrOwner(d, req.user)) {
+            return res.status(403).json({ success: false, message: "Only the dealership owner or manager can manage staff." });
+        }
         const { email, role } = req.body;
         const User = require("../models/User");
         const member = await User.findOne({ email: String(email || "").trim().toLowerCase() }).select("_id name email").lean();
         if (!member) return res.status(404).json({ success: false, message: "No user found with that email." });
+        if (d.owner && String(d.owner) === String(member._id)) {
+            return res.status(409).json({ success: false, message: "This user is already the dealership owner." });
+        }
         if (d.staff.some((s) => String(s.user) === String(member._id))) {
             return res.status(409).json({ success: false, message: "User is already staff." });
         }
         d.staff.push({ user: member._id, role: role === "manager" ? "manager" : "sales" });
         await d.save();
+        await d.populate({ path: "staff.user", select: "name email phone role" });
         audit(req.user._id, "dealership.staff.add", "Dealership", d._id, d._id, member.email);
         res.status(200).json({ success: true, message: "Staff added.", staff: d.staff });
     } catch (error) {
@@ -185,8 +212,12 @@ const removeStaff = async (req, res) => {
     try {
         const d = await requireDealershipAccess(req.user, req.params.dealershipId);
         if (!d) return res.status(404).json({ success: false, message: "Dealership not found." });
+        if (!isDealershipManagerOrOwner(d, req.user)) {
+            return res.status(403).json({ success: false, message: "Only the dealership owner or manager can manage staff." });
+        }
         d.staff = d.staff.filter((s) => String(s.user) !== String(req.params.userId));
         await d.save();
+        await d.populate({ path: "staff.user", select: "name email phone role" });
         audit(req.user._id, "dealership.staff.remove", "Dealership", d._id, d._id, req.params.userId);
         res.status(200).json({ success: true, message: "Staff removed.", staff: d.staff });
     } catch (error) {

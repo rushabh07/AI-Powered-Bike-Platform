@@ -32,7 +32,8 @@ import DealershipReviews from "../components/dealership/DealershipReviews";
 import DealershipNotifications from "../components/dealership/DealershipNotifications";
 import DealershipReports from "../components/dealership/DealershipReports";
 import DealershipReferrals from "../components/dealership/DealershipReferrals";
-import { Star, Bell, FileText, Package, ShoppingCart } from "lucide-react";
+import MyDealerships from "../components/dealership/MyDealerships";
+import { Star, Bell, FileText, Package, ShoppingCart, Store } from "lucide-react";
 import { useRole } from "../context/RoleContext";
 import { API_BASE } from "../services/api";
 
@@ -622,6 +623,7 @@ const ProviderDashboard = () => {
                             </button>
 
                             {[
+                                ["dealerships", "My Dealerships", Store, "dealerships.manage"],
                                 ["inventory", "Inventory", Package, "dealerships.manage"],
                                 ["orders", "Orders", ShoppingCart, "orders.manage"],
                                 ["sales", "Sales", Briefcase, "orders.manage"],
@@ -779,6 +781,7 @@ const ProviderDashboard = () => {
                     </button>
 
                     {[
+                        ["dealerships", "My Dealerships", Store],
                         ["inventory", "Inventory", Package],
                         ["orders", "Orders", ShoppingCart],
                         ["sales", "Sales", Briefcase],
@@ -1389,6 +1392,17 @@ const ProviderDashboard = () => {
                                 )}
                             </div>
                         )}
+                    </section>
+                    )}
+
+                    {activeSection === "dealerships" && (
+                    <section id="dealerships" className="scroll-mt-24">
+                        <div className="mb-5">
+                            <p className="text-sm text-orange-400 font-medium">Ownership</p>
+                            <h2 className="text-2xl font-bold mt-1">My Dealerships</h2>
+                            <p className="text-zinc-500 mt-2 text-sm">View and manage dealerships authorized for your account.</p>
+                        </div>
+                        <MyDealerships currentUser={provider} />
                     </section>
                     )}
 

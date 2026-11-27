@@ -1,4 +1,8 @@
 const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const Dealership = require("../models/Dealership");
+const AuditLog = require("../models/AuditLog");
 
 const User = require("../models/User");
 const Motorcycle = require("../models/Motorcycle");
@@ -419,6 +423,206 @@ router.delete("/advertisements/:id", protect, adminOnly, requirePermission("ads.
     } catch (error) {
         console.error("Admin ad delete error:", error.message);
         res.status(500).json({ success: false, message: "Could not delete advertisement." });
+    }
+});
+
+// =====================================================
+// PROVIDER MANAGEMENT + DEALERSHIP OWNERSHIP
+// GET    /api/admin/providers
+// POST   /api/admin/providers
+// PUT    /api/admin/providers/:id
+// =====================================================
+const attachProviderDealerships = async (providers) => {
+    const providerIds = providers.map((p) => p._id);
+    if (providerIds.length === 0) return [];
+    const dealerships = await Dealership.find({
+        $or: [{ owner: { $in: providerIds } }, { "staff.user": { $in: providerIds } }],
+    })
+        .select("name city address phone email approved isActive owner staff")
+        .lean();
+
+    return providers.map((p) => {
+        const pid = String(p._id);
+        const ownedDealerships = dealerships
+            .filter((d) => d.owner && String(d.owner) === pid)
+            .map(({ staff, ...rest }) => rest);
+        const staffDealerships = dealerships
+            .filter((d) => (!d.owner || String(d.owner) !== pid) && (d.staff || []).some((s) => String(s.user) === pid))
+            .map(({ staff, ...rest }) => rest);
+        return {
+            ...p,
+            dealership: ownedDealerships[0] || null,
+            ownedDealerships,
+            staffDealerships,
+        };
+    });
+};
+
+router.get("/providers", protect, adminOnly, requirePermission("users.manage"), async (req, res) => {
+    try {
+        const providers = await User.find({ role: "provider" })
+            .select("-password")
+            .sort({ createdAt: -1 })
+            .lean();
+        const enriched = await attachProviderDealerships(providers);
+        res.status(200).json({
+            success: true,
+            count: enriched.length,
+            providers: enriched,
+        });
+    } catch (error) {
+        console.error("Get providers error:", error.message);
+        res.status(500).json({ success: false, message: "Failed to fetch providers" });
+    }
+});
+
+router.post("/providers", protect, adminOnly, requirePermission("users.manage"), async (req, res) => {
+    try {
+        const { name, email, phone, password, address = "", dealershipId } = req.body;
+        if (!name || !String(name).trim() || !email || !String(email).trim() || !phone || !String(phone).trim() || !password) {
+            return res.status(400).json({ success: false, message: "Name, email, phone, and password are required." });
+        }
+
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const existing = await User.findOne({ email: normalizedEmail }).select("_id").lean();
+        if (existing) {
+            return res.status(409).json({ success: false, message: "A user with this email already exists." });
+        }
+
+        let targetDealership = null;
+        if (dealershipId !== undefined && dealershipId !== null && String(dealershipId).trim() !== "") {
+            if (!mongoose.Types.ObjectId.isValid(dealershipId)) {
+                return res.status(400).json({ success: false, message: "Invalid dealership ID." });
+            }
+            targetDealership = await Dealership.findById(dealershipId);
+            if (!targetDealership) {
+                return res.status(404).json({ success: false, message: "Selected dealership does not exist." });
+            }
+        }
+
+        const hashedPassword = await bcrypt.hash(String(password), 10);
+        const provider = await User.create({
+            name: String(name).trim(),
+            email: normalizedEmail,
+            phone: String(phone).trim(),
+            address: String(address || "").trim(),
+            password: hashedPassword,
+            role: "provider",
+            aiPlan: "free",
+        });
+
+        if (targetDealership) {
+            targetDealership.owner = provider._id;
+            await targetDealership.save();
+            AuditLog.create({
+                actor: req.user._id,
+                action: "dealership.owner.assign",
+                entity: "Dealership",
+                entityId: targetDealership._id,
+                dealership: targetDealership._id,
+                details: `Assigned ${provider.email} as owner`,
+            }).catch(() => {});
+        }
+
+        AuditLog.create({
+            actor: req.user._id,
+            action: "admin.provider.create",
+            entity: "User",
+            entityId: provider._id,
+            dealership: targetDealership ? targetDealership._id : null,
+            details: `${provider.email}${targetDealership ? ` -> ${targetDealership.name}` : " (unassigned)"}`,
+        }).catch(() => {});
+
+        const safe = provider.toObject();
+        delete safe.password;
+        const [enriched] = await attachProviderDealerships([safe]);
+        res.status(201).json({
+            success: true,
+            message: "Provider created successfully.",
+            provider: enriched,
+        });
+    } catch (error) {
+        console.error("Create provider error:", error.message);
+        res.status(500).json({ success: false, message: "Failed to create provider." });
+    }
+});
+
+router.put("/providers/:id", protect, adminOnly, requirePermission("users.manage"), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid provider ID." });
+        }
+
+        const provider = await User.findOne({ _id: id, role: "provider" });
+        if (!provider) {
+            return res.status(404).json({ success: false, message: "Provider not found." });
+        }
+
+        const { name, phone, address, password, dealershipId } = req.body;
+
+        let targetDealership = null;
+        const shouldUpdateDealership = dealershipId !== undefined;
+        if (shouldUpdateDealership && dealershipId !== null && String(dealershipId).trim() !== "") {
+            if (!mongoose.Types.ObjectId.isValid(dealershipId)) {
+                return res.status(400).json({ success: false, message: "Invalid dealership ID." });
+            }
+            targetDealership = await Dealership.findById(dealershipId);
+            if (!targetDealership) {
+                return res.status(404).json({ success: false, message: "Selected dealership does not exist." });
+            }
+        }
+
+        if (name !== undefined && String(name).trim()) provider.name = String(name).trim();
+        if (phone !== undefined && String(phone).trim()) provider.phone = String(phone).trim();
+        if (address !== undefined) provider.address = String(address).trim();
+        if (password !== undefined && String(password).trim() !== "") {
+            provider.password = await bcrypt.hash(String(password), 10);
+        }
+        await provider.save();
+
+        if (shouldUpdateDealership) {
+            if (targetDealership) {
+                await Dealership.updateMany(
+                    { owner: provider._id, _id: { $ne: targetDealership._id } },
+                    { $set: { owner: null } }
+                );
+                targetDealership.owner = provider._id;
+                await targetDealership.save();
+                AuditLog.create({
+                    actor: req.user._id,
+                    action: "dealership.owner.assign",
+                    entity: "Dealership",
+                    entityId: targetDealership._id,
+                    dealership: targetDealership._id,
+                    details: `Assigned ${provider.email} as owner`,
+                }).catch(() => {});
+            } else {
+                await Dealership.updateMany(
+                    { owner: provider._id },
+                    { $set: { owner: null } }
+                );
+                AuditLog.create({
+                    actor: req.user._id,
+                    action: "dealership.owner.unassign",
+                    entity: "User",
+                    entityId: provider._id,
+                    details: `Cleared dealership ownership for ${provider.email}`,
+                }).catch(() => {});
+            }
+        }
+
+        const safe = provider.toObject();
+        delete safe.password;
+        const [enriched] = await attachProviderDealerships([safe]);
+        res.status(200).json({
+            success: true,
+            message: "Provider updated successfully.",
+            provider: enriched,
+        });
+    } catch (error) {
+        console.error("Update provider error:", error.message);
+        res.status(500).json({ success: false, message: "Failed to update provider." });
     }
 });
 

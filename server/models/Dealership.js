@@ -63,6 +63,9 @@ const dealershipSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        // Single source of truth for dealership ownership:
+        // - `owner` links a Dealership to its primary provider User.
+        // - `staff` grants scoped manager/sales access to additional Users.
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -92,5 +95,7 @@ const dealershipSchema = new mongoose.Schema(
 );
 
 dealershipSchema.index({ city: 1, isActive: 1 });
+dealershipSchema.index({ owner: 1 });
+dealershipSchema.index({ "staff.user": 1 });
 
 module.exports = mongoose.models.Dealership || mongoose.model("Dealership", dealershipSchema);

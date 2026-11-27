@@ -30,8 +30,11 @@ const categories = [
     "Electric",
 ];
 
-const formatPrice = (price) =>
-    `₹${(price / 100000).toFixed(2)} Lakh`;
+const formatPrice = (price) => {
+    const numeric = Number(price);
+    if (!Number.isFinite(numeric) || numeric <= 0) return "Price unavailable";
+    return `₹${(numeric / 100000).toFixed(2)} Lakh`;
+};
 
 export default function Motorcycles() {
     const { region } = useRegion();
@@ -950,42 +953,61 @@ function BikeCard({
     onWishlist,
     onCompare,
 }) {
+    const { region } = useRegion();
     const isEV =
         String(bike.category || "").toLowerCase() === "electric";
     const navigate = useNavigate();
     const availableColors = (bike.colors || []).filter((c) => c.available !== false);
     const [cardColorIdx, setCardColorIdx] = useState(0);
+    const [failedImageSrc, setFailedImageSrc] = useState("");
     const activeCardColor = availableColors[cardColorIdx] || null;
-    const cardImage = activeCardColor?.image || bike.image;
+    const cardImage = (activeCardColor?.image || bike.image || bike.images?.[0]?.url || "").trim();
+    const showImage = Boolean(cardImage) && failedImageSrc !== cardImage;
+    const secondaryStat = isEV
+        ? (bike.range ? `${bike.range} km range` : null)
+        : (bike.mileage ? `${bike.mileage} KM/L` : null);
+    const onRoadPrice = bike.regionalPricing?.onRoadPrice ?? bike.price;
+    const exShowroomPrice = bike.regionalPricing?.exShowroomPrice ?? bike.price ?? bike.exShowroomPrice;
+    const hasExShowroom = Number.isFinite(Number(exShowroomPrice)) && Number(exShowroomPrice) > 0;
 
     return (
         <article
             onClick={() => navigate(`/motorcycles/${bike._id}`)}
-            className="group cursor-pointer overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]"
+            className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]"
         >
 
             {/* IMAGE */}
-            <div className="relative h-56 overflow-hidden bg-zinc-900">
+            <div className="relative h-56 shrink-0 overflow-hidden bg-zinc-900">
 
-                <img
-                    src={cardImage}
-                    alt={activeCardColor ? `${bike.name} - ${activeCardColor.name}` : bike.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                />
+                {showImage ? (
+                    <img
+                        src={cardImage}
+                        alt={activeCardColor ? `${bike.name || "Motorcycle"} - ${activeCardColor.name}` : (bike.name || "Motorcycle")}
+                        loading="lazy"
+                        decoding="async"
+                        onError={() => setFailedImageSrc(cardImage)}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-zinc-900">
+                        <Bike size={44} className="text-orange-500/70" aria-hidden="true" />
+                    </div>
+                )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
                 {/* CATEGORY */}
-                <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-semibold backdrop-blur-xl">
-                    {bike.category}
-                </div>
+                {bike.category && (
+                    <div className="absolute left-4 top-4 max-w-[60%] truncate rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-semibold backdrop-blur-xl">
+                        {bike.category}
+                    </div>
+                )}
 
                 {/* WISHLIST */}
                 <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); onWishlist(); }}
-                    aria-label={liked ? `Remove ${bike.name} from wishlist` : `Save ${bike.name} to wishlist`}
+                    aria-label={liked ? `Remove ${bike.name || "motorcycle"} from wishlist` : `Save ${bike.name || "motorcycle"} to wishlist`}
                     aria-pressed={liked}
                     className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition ${liked
                         ? "bg-orange-500 text-black"
@@ -1005,7 +1027,7 @@ function BikeCard({
             </div>
 
             {/* CONTENT */}
-            <div className="p-5">
+            <div className="flex flex-1 flex-col p-5">
 
                 <div className="flex items-center gap-3">
                     <BrandLogo
@@ -1014,13 +1036,13 @@ function BikeCard({
                         size={36}
                     />
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold uppercase tracking-wider text-orange-500">
-                            {bike.brand}
+                            {bike.brand || "Motorcycle"}
                         </p>
 
                         <h3 className="truncate text-xl font-bold">
-                            {bike.name}
+                            {bike.name || "Untitled Model"}
                         </h3>
                     </div>
                 </div>
@@ -1055,7 +1077,7 @@ function BikeCard({
                                             aria-label={`Show ${bike.name} in ${color.name}`}
                                             aria-pressed={isActive}
                                             className={`block w-5 h-5 rounded-full border-2 shadow-sm transition-all duration-150 hover:scale-125 ${isActive ? "border-orange-500 ring-2 ring-orange-500/30" : "border-white/20 hover:border-white/50"}`}
-                                            style={{ backgroundColor: color.hexCode }}
+                                            style={{ backgroundColor: color.hexCode || "#71717a" }}
                                             title={color.name}
                                         />
                                         {/* Mini tooltip */}
@@ -1073,13 +1095,13 @@ function BikeCard({
                     );
                 })()}
 
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
 
                     {bike.reviewSummary?.totalReviews > 0 ? (
                         <>
                             <Star
                                 size={15}
-                                className="fill-orange-500 text-orange-500"
+                                className="shrink-0 fill-orange-500 text-orange-500"
                             />
 
                             <span className="text-sm font-medium">
@@ -1096,15 +1118,17 @@ function BikeCard({
                         </span>
                     )}
 
-                    <span className="text-zinc-700">
-                        •
-                    </span>
+                    {secondaryStat && (
+                        <>
+                            <span className="text-zinc-700" aria-hidden="true">
+                                •
+                            </span>
 
-                    <span className="text-sm text-zinc-500">
-                        {isEV && bike.range
-                            ? `${bike.range} km range`
-                            : `${bike.mileage} KM/L`}
-                    </span>
+                            <span className="text-sm text-zinc-500">
+                                {secondaryStat}
+                            </span>
+                        </>
+                    )}
 
                 </div>
 
@@ -1135,50 +1159,60 @@ function BikeCard({
                         <>
                             <Spec
                                 label="Engine"
-                                value={`${bike.engine} CC`}
+                                value={bike.engine ? `${bike.engine} CC` : "N/A"}
                             />
 
                             <Spec
                                 label="Power"
-                                value={`${bike.power} HP`}
+                                value={bike.power ? `${bike.power} HP` : "N/A"}
                             />
                         </>
                     )}
 
                 </div>
 
-                {/* PRICE */}
-                <div className="mt-5">
+                <div className="mt-auto pt-5">
+                    {/* PRICE */}
+                    <div>
 
-                    <p className="text-xs text-zinc-600">On-road price</p>
-                    <p className="mt-1 text-xl font-black text-orange-500">
-                        {formatPrice(bike.regionalPricing?.onRoadPrice ?? bike.price)}
-                    </p>
-                    <p className={`mt-0.5 text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
-                        {bike.regionalPricing?.label || `Estimated in ${region.city}`}
-                    </p>
-                    <p className="mt-1 text-[10px] text-zinc-600">Ex-showroom {formatPrice(bike.regionalPricing?.exShowroomPrice ?? bike.price)}</p>
+                        <p className="text-xs text-zinc-600">On-road price</p>
+                        <p className="mt-1 text-xl font-black text-orange-500">
+                            {formatPrice(onRoadPrice)}
+                        </p>
+                        <p className={`mt-0.5 truncate text-[11px] font-semibold ${bike.regionalPricing?.isFallback ? "text-amber-400" : "text-zinc-500"}`}>
+                            {bike.regionalPricing?.label || `Estimated in ${region.city}`}
+                        </p>
+                        {hasExShowroom && (
+                            <p className="mt-1 truncate text-[10px] text-zinc-600">
+                                Ex-showroom {formatPrice(exShowroomPrice)}
+                            </p>
+                        )}
 
-                </div>
+                    </div>
 
-                {/* BUTTONS */}
-                <div className="mt-5 grid grid-cols-2 gap-2">
+                    {/* BUTTONS */}
+                    <div className="mt-4 grid grid-cols-2 gap-2">
 
-                    <Link
-                        to={`/motorcycles/${bike._id}`}
-                        className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-sm font-bold text-black transition hover:bg-orange-400"
-                    >
-                        <ChevronRight size={15} />
-                        View Details
-                    </Link>
+                        <Link
+                            to={`/motorcycles/${bike._id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-sm font-bold text-black transition hover:bg-orange-400"
+                        >
+                            <ChevronRight size={15} />
+                            View Details
+                        </Link>
 
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onCompare(); }}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400"
-                    >
-                        <GitCompare size={15} />
-                    </button>
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onCompare(); }}
+                            aria-label={`Compare ${bike.name || "motorcycle"}`}
+                            title="Compare"
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400"
+                        >
+                            <GitCompare size={15} />
+                        </button>
 
+                    </div>
                 </div>
             </div>
         </article>
@@ -1190,13 +1224,13 @@ function BikeCard({
 // =====================================
 function Spec({ label, value }) {
     return (
-        <div className="rounded-xl border border-white/[0.05] bg-white/[0.03] p-2.5">
+        <div className="min-w-0 rounded-xl border border-white/[0.05] bg-white/[0.03] p-2.5">
 
-            <p className="text-[10px] uppercase tracking-wider text-zinc-600">
+            <p className="truncate text-[10px] uppercase tracking-wider text-zinc-600">
                 {label}
             </p>
 
-            <p className="mt-1 text-sm font-semibold">
+            <p className="mt-1 truncate text-sm font-semibold">
                 {value}
             </p>
         </div>

@@ -896,8 +896,11 @@ const FavoritesSection = ({ navigate }) => {
                                     {b.image ? (
                                         <img
                                             src={b.image}
-                                            alt={b.name}
+                                            alt={b.name || "Motorcycle"}
                                             loading="lazy"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = "none";
+                                            }}
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
@@ -915,18 +918,17 @@ const FavoritesSection = ({ navigate }) => {
                                     />
                                     <div className="min-w-0">
                                         <p className="truncate text-xs font-bold uppercase tracking-wider text-orange-500">
-                                            {b.brand}
+                                            {b.brand || "Motorcycle"}
                                         </p>
                                         <p className="truncate font-bold">
-                                            {b.name}
+                                            {b.name || "Untitled Model"}
                                         </p>
                                     </div>
                                 </div>
                                 <p className="px-4 pb-3 text-sm font-black text-orange-400">
-                                    ₹
-                                    {Number(
-                                        b.price || 0
-                                    ).toLocaleString("en-IN")}
+                                    {Number.isFinite(Number(b.price)) && Number(b.price) > 0
+                                        ? `₹${Number(b.price).toLocaleString("en-IN")}`
+                                        : "Price unavailable"}
                                 </p>
                             </button>
                             <div className="px-4 pb-4">
