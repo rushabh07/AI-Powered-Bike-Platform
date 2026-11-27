@@ -498,7 +498,7 @@ const ProviderDashboard = () => {
                 </div>
 
                 <div className="min-w-0">
-                    <p className="text-xs text-zinc-500 mb-1">
+                    <p className="text-xs text-zinc-400 mb-1">
                         {label}
                     </p>
 
@@ -553,7 +553,7 @@ const ProviderDashboard = () => {
                                 MOTOAI
                             </p>
 
-                            <p className="text-[10px] text-zinc-500">
+                            <p className="text-[10px] text-zinc-400">
                                 PROVIDER
                             </p>
                         </div>
@@ -561,6 +561,9 @@ const ProviderDashboard = () => {
 
                     <button
                         type="button"
+                        aria-label={mobileMenu ? "Close provider navigation menu" : "Open provider navigation menu"}
+                        aria-expanded={mobileMenu}
+                        aria-controls="provider-mobile-navigation"
                         onClick={() =>
                             setMobileMenu(
                                 !mobileMenu
@@ -577,7 +580,7 @@ const ProviderDashboard = () => {
                 </div>
 
                 {mobileMenu && (
-                    <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-zinc-800 bg-[#111113] p-4">
+                    <div id="provider-mobile-navigation" className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-zinc-800 bg-[#111113] p-4">
                         <div className="space-y-2">
                             <button
                                 type="button"
@@ -683,7 +686,7 @@ const ProviderDashboard = () => {
                                 MOTOAI
                             </h1>
 
-                            <p className="text-[10px] tracking-[0.2em] text-zinc-500">
+                            <p className="text-[10px] tracking-[0.2em] text-zinc-400">
                                 AI MOTORS
                             </p>
                         </div>
@@ -708,7 +711,7 @@ const ProviderDashboard = () => {
                                         "Provider"}
                                 </p>
 
-                                <p className="text-xs text-zinc-500 truncate">
+                                <p className="text-xs text-zinc-400 truncate">
                                     {provider?.email ||
                                         "Provider account"}
                                 </p>
@@ -828,7 +831,7 @@ const ProviderDashboard = () => {
 
                 <div className="hidden lg:flex sticky top-0 z-40 h-20 bg-[#09090b]/90 backdrop-blur-xl border-b border-zinc-800 px-8 items-center justify-between">
                     <div>
-                        <p className="text-xs text-zinc-500 uppercase tracking-wider">
+                        <p className="text-xs text-zinc-400 uppercase tracking-wider">
                             Provider Portal
                         </p>
 
@@ -912,7 +915,7 @@ const ProviderDashboard = () => {
                                 Manage Your Services
                             </h1>
 
-                            <p className="text-zinc-500 mt-2 text-sm">
+                            <p className="text-zinc-400 mt-2 text-sm">
                                 Track bookings, earnings
                                 and your provider
                                 profile.
@@ -933,7 +936,7 @@ const ProviderDashboard = () => {
                                         />
                                     </div>
 
-                                    <span className="text-xs text-zinc-600">
+                                    <span className="text-xs text-zinc-400">
                                         TOTAL
                                     </span>
                                 </div>
@@ -946,7 +949,7 @@ const ProviderDashboard = () => {
                                         0}
                                 </p>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Total Bookings
                                 </p>
                             </div>
@@ -962,7 +965,7 @@ const ProviderDashboard = () => {
                                         />
                                     </div>
 
-                                    <span className="text-xs text-zinc-600">
+                                    <span className="text-xs text-zinc-400">
                                         PENDING
                                     </span>
                                 </div>
@@ -980,7 +983,7 @@ const ProviderDashboard = () => {
                                         ).length}
                                 </p>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Pending Requests
                                 </p>
                             </div>
@@ -996,7 +999,7 @@ const ProviderDashboard = () => {
                                         />
                                     </div>
 
-                                    <span className="text-xs text-zinc-600">
+                                    <span className="text-xs text-zinc-400">
                                         DONE
                                     </span>
                                 </div>
@@ -1014,7 +1017,7 @@ const ProviderDashboard = () => {
                                         ).length}
                                 </p>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Completed Jobs
                                 </p>
                             </div>
@@ -1050,7 +1053,7 @@ const ProviderDashboard = () => {
                                     )}
                                 </p>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Total Earnings
                                 </p>
                             </div>
@@ -1073,7 +1076,7 @@ const ProviderDashboard = () => {
                                     Recent Bookings
                                 </h2>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Manage your customer
                                     service requests.
                                 </p>
@@ -1102,7 +1105,7 @@ const ProviderDashboard = () => {
                                 <div className="w-14 h-14 rounded-2xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
                                     <CalendarDays
                                         size={25}
-                                        className="text-zinc-500"
+                                        className="text-zinc-400"
                                     />
                                 </div>
 
@@ -1110,7 +1113,7 @@ const ProviderDashboard = () => {
                                     No bookings yet
                                 </h3>
 
-                                <p className="text-sm text-zinc-500 mt-2">
+                                <p className="text-sm text-zinc-400 mt-2">
                                     New service requests
                                     will appear here.
                                 </p>
@@ -1180,7 +1183,7 @@ const ProviderDashboard = () => {
                                                                     "Customer"}
                                                             </h3>
 
-                                                            <p className="text-sm text-zinc-500 truncate">
+                                                            <p className="text-sm text-zinc-400 truncate">
                                                                 {service}
                                                             </p>
                                                         </div>
@@ -1190,7 +1193,7 @@ const ProviderDashboard = () => {
 
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 lg:w-auto">
                                                         <div>
-                                                            <p className="text-xs text-zinc-600 mb-1">
+                                                            <p className="text-xs text-zinc-400 mb-1">
                                                                 Date
                                                             </p>
 
@@ -1199,7 +1202,7 @@ const ProviderDashboard = () => {
                                                                     size={
                                                                         14
                                                                     }
-                                                                    className="text-zinc-500"
+                                                                    className="text-zinc-400"
                                                                 />
 
                                                                 {booking.date ||
@@ -1209,7 +1212,7 @@ const ProviderDashboard = () => {
                                                         </div>
 
                                                         <div>
-                                                            <p className="text-xs text-zinc-600 mb-1">
+                                                            <p className="text-xs text-zinc-400 mb-1">
                                                                 Amount
                                                             </p>
 
@@ -1224,7 +1227,7 @@ const ProviderDashboard = () => {
                                                         </div>
 
                                                         <div>
-                                                            <p className="text-xs text-zinc-600 mb-1">
+                                                            <p className="text-xs text-zinc-400 mb-1">
                                                                 Status
                                                             </p>
 
@@ -1375,7 +1378,7 @@ const ProviderDashboard = () => {
                                                         "rejected" ||
                                                         status ===
                                                         "cancelled") && (
-                                                            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-zinc-500 text-sm">
+                                                            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-zinc-400 text-sm">
                                                                 <XCircle
                                                                     size={
                                                                         16
@@ -1400,7 +1403,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Ownership</p>
                             <h2 className="text-2xl font-bold mt-1">My Dealerships</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">View and manage dealerships authorized for your account.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">View and manage dealerships authorized for your account.</p>
                         </div>
                         <MyDealerships currentUser={provider} />
                     </section>
@@ -1415,7 +1418,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Stock</p>
                             <h2 className="text-2xl font-bold mt-1">Inventory</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Motorcycle stock levels per showroom.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Motorcycle stock levels per showroom.</p>
                         </div>
                         <DealershipInventory />
                     </section>
@@ -1430,7 +1433,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Online + Offline</p>
                             <h2 className="text-2xl font-bold mt-1">Motorcycle Orders</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Confirm requests, verify payments, manage fulfilment.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Confirm requests, verify payments, manage fulfilment.</p>
                         </div>
                         <BikeOrdersSection />
                     </section>
@@ -1445,7 +1448,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Offline Payments</p>
                             <h2 className="text-2xl font-bold mt-1">Sales</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Cash, UPI, card and bank-transfer records.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Cash, UPI, card and bank-transfer records.</p>
                         </div>
                         <DealershipSales />
                     </section>
@@ -1456,7 +1459,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Customer leads</p>
                             <h2 className="text-2xl font-bold mt-1">Referrals & Commissions</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Follow up on referrals assigned to your dealership and submit completed offline sales for admin verification.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Follow up on referrals assigned to your dealership and submit completed offline sales for admin verification.</p>
                         </div>
                         <DealershipReferrals />
                     </section>
@@ -1471,7 +1474,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Reputation</p>
                             <h2 className="text-2xl font-bold mt-1">Reviews</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Respond to reviews on your stocked models.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Respond to reviews on your stocked models.</p>
                         </div>
                         <DealershipReviews />
                     </section>
@@ -1486,7 +1489,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Inbox</p>
                             <h2 className="text-2xl font-bold mt-1">Notifications</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Bookings, enquiries and order updates.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Bookings, enquiries and order updates.</p>
                         </div>
                         <DealershipNotifications />
                     </section>
@@ -1501,7 +1504,7 @@ const ProviderDashboard = () => {
                         <div className="mb-5">
                             <p className="text-sm text-orange-400 font-medium">Analytics</p>
                             <h2 className="text-2xl font-bold mt-1">Reports & Activity</h2>
-                            <p className="text-zinc-500 mt-2 text-sm">Download CSV reports and view audit trail.</p>
+                            <p className="text-zinc-400 mt-2 text-sm">Download CSV reports and view audit trail.</p>
                         </div>
                         <DealershipReports />
                     </section>
@@ -1526,7 +1529,7 @@ const ProviderDashboard = () => {
                                     My Profile
                                 </h2>
 
-                                <p className="text-sm text-zinc-500 mt-1">
+                                <p className="text-sm text-zinc-400 mt-1">
                                     Manage your provider
                                     account information.
                                 </p>
@@ -1577,7 +1580,7 @@ const ProviderDashboard = () => {
                                             </span>
                                         </div>
 
-                                        <p className="text-zinc-500 mt-1">
+                                        <p className="text-zinc-400 mt-1">
                                             {provider?.email ||
                                                 "No email available"}
                                         </p>
@@ -1588,7 +1591,7 @@ const ProviderDashboard = () => {
                                                 Active
                                             </span>
 
-                                            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                                            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
                                                 <ShieldCheck
                                                     size={
                                                         13
@@ -1661,7 +1664,7 @@ const ProviderDashboard = () => {
                                                     Status
                                                 </p>
 
-                                                <p className="text-xs text-zinc-500 mt-0.5">
+                                                <p className="text-xs text-zinc-400 mt-0.5">
                                                     Your provider
                                                     account is
                                                     currently
@@ -1683,7 +1686,7 @@ const ProviderDashboard = () => {
                     {/* Footer */}
 
                     <footer className="pt-4 pb-6 border-t border-zinc-800">
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-600">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400">
                             <p>
                                 ©{" "}
                                 {new Date().getFullYear()}{" "}
@@ -1742,7 +1745,7 @@ const ProviderDashboard = () => {
                                             Edit Profile
                                         </h2>
 
-                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                        <p className="text-xs text-zinc-400 mt-0.5">
                                             Update your
                                             provider
                                             information
@@ -1840,7 +1843,7 @@ const ProviderDashboard = () => {
                                 <div className="relative">
                                     <User
                                         size={17}
-                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"
+                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
                                     />
 
                                     <input
@@ -1868,7 +1871,7 @@ const ProviderDashboard = () => {
                                 <div className="relative">
                                     <Mail
                                         size={17}
-                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600"
+                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
                                     />
 
                                     <input
@@ -1878,11 +1881,11 @@ const ProviderDashboard = () => {
                                             ""
                                         }
                                         disabled
-                                        className="w-full h-12 pl-11 pr-4 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-500 cursor-not-allowed"
+                                        className="w-full h-12 pl-11 pr-4 rounded-xl bg-zinc-900/50 border border-zinc-800 text-zinc-400 cursor-not-allowed"
                                     />
                                 </div>
 
-                                <p className="text-[11px] text-zinc-600 mt-1.5">
+                                <p className="text-[11px] text-zinc-400 mt-1.5">
                                     Email address
                                     cannot be changed
                                     here.
@@ -1899,7 +1902,7 @@ const ProviderDashboard = () => {
                                 <div className="relative">
                                     <Phone
                                         size={17}
-                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"
+                                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
                                     />
 
                                     <input
@@ -1927,7 +1930,7 @@ const ProviderDashboard = () => {
                                 <div className="relative">
                                     <MapPin
                                         size={17}
-                                        className="absolute left-3.5 top-4 text-zinc-500"
+                                        className="absolute left-3.5 top-4 text-zinc-400"
                                     />
 
                                     <textarea

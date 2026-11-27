@@ -308,11 +308,13 @@ const MessagesSection = () => {
 
 const DealershipsSection = () => {
     const [items, setItems] = useState([]);
+    const [providers, setProviders] = useState([]);
+    const [providersError, setProvidersError] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState(null);
-    const [form, setForm] = useState({ name: "", city: "", address: "", phone: "", openingHours: "Mon-Sat: 10:00 AM - 8:00 PM", brands: "", googleMapsUrl: "", timeSlots: "10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM", stockStatus: "unknown", approved: true, isActive: true });
+    const [form, setForm] = useState({ name: "", city: "", address: "", phone: "", email: "", openingHours: "Mon-Sat: 10:00 AM - 8:00 PM", brands: "", googleMapsUrl: "", timeSlots: "10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM", stockStatus: "unknown", ownerId: "", approved: true, isActive: true });
     const [saving, setSaving] = useState(false);
 
     const authHeaders = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` });
@@ -325,6 +327,15 @@ const DealershipsSection = () => {
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || "Failed to load dealerships");
             setItems(data.dealerships || []);
+            try {
+                const providerRes = await fetch(`${ADMIN_API}/providers`, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+                const providerData = await providerRes.json();
+                if (!providerRes.ok || !providerData.success) throw new Error(providerData.message || "Failed to load providers");
+                setProviders(providerData.providers || []);
+                setProvidersError("");
+            } catch (providerError) {
+                setProvidersError(providerError.message || "Unable to load providers.");
+            }
         } catch (err) {
             setError(err.message || "Unable to load dealerships.");
         } finally {
@@ -334,8 +345,8 @@ const DealershipsSection = () => {
 
     useEffect(() => { load(); }, []);
 
-    const resetForm = () => { setForm({ name: "", city: "", address: "", phone: "", email: "", openingHours: "Mon-Sat: 10:00 AM - 8:00 PM", brands: "", googleMapsUrl: "", timeSlots: "10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM", stockStatus: "unknown", approved: true, isActive: true }); setEditing(null); setShowForm(false); };
-    const openEdit = (d) => { setEditing(d); setForm({ name: d.name || "", city: d.city || "", address: d.address || "", phone: d.phone || "", email: d.email || "", openingHours: d.openingHours || "", brands: (d.brands || []).join(", "), googleMapsUrl: d.googleMapsUrl || "", timeSlots: (d.timeSlots || []).join(", "), stockStatus: d.stockStatus || "unknown", approved: d.approved !== false, isActive: d.isActive !== false }); setShowForm(true); };
+    const resetForm = () => { setForm({ name: "", city: "", address: "", phone: "", email: "", openingHours: "Mon-Sat: 10:00 AM - 8:00 PM", brands: "", googleMapsUrl: "", timeSlots: "10:00 AM, 12:00 PM, 2:00 PM, 4:00 PM, 6:00 PM", stockStatus: "unknown", ownerId: "", approved: true, isActive: true }); setEditing(null); setShowForm(false); };
+    const openEdit = (d) => { setEditing(d); setForm({ name: d.name || "", city: d.city || "", address: d.address || "", phone: d.phone || "", email: d.email || "", openingHours: d.openingHours || "", brands: (d.brands || []).join(", "), googleMapsUrl: d.googleMapsUrl || "", timeSlots: (d.timeSlots || []).join(", "), stockStatus: d.stockStatus || "unknown", ownerId: d.owner?._id || "", approved: d.approved !== false, isActive: d.isActive !== false }); setShowForm(true); };
 
     const handleSave = async () => {
         if (!form.name.trim() || !form.city.trim() || !form.address.trim() || !form.phone.trim()) { setError("Name, city, address and phone are required."); return; }
@@ -344,9 +355,11 @@ const DealershipsSection = () => {
         try {
             const payload = {
                 ...form,
+                owner: form.ownerId || null,
                 brands: form.brands.split(",").map((b) => b.trim()).filter(Boolean),
                 timeSlots: form.timeSlots.split(",").map((s) => s.trim()).filter(Boolean),
             };
+            delete payload.ownerId;
             const res = await fetch(editing ? `${API_BASE}/dealerships/${editing._id}` : `${API_BASE}/dealerships`, {
                 method: editing ? "PUT" : "POST",
                 headers: authHeaders(),
@@ -404,6 +417,14 @@ const DealershipsSection = () => {
                                 <option value="limited">Limited</option>
                                 <option value="out_of_stock">Out of Stock</option>
                             </select>
+                        </label>
+                        <label className="block text-xs font-semibold text-zinc-400">Owner
+                            <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })} className="mt-1.5 w-full rounded-xl border border-white/10 bg-[#111] px-4 py-2.5 text-sm text-white outline-none focus:border-orange-500/50">
+                                <option value="">Unassigned</option>
+                                {providers.map((provider) => <option key={provider._id} value={provider._id}>{provider.name} ({provider.email})</option>)}
+                                {editing?.owner?._id && !providers.some((provider) => provider._id === editing.owner._id) && <option value={editing.owner._id}>{editing.owner.name || "Current owner"} ({editing.owner.email || "existing assignment"})</option>}
+                            </select>
+                            {providersError && <span className="mt-1 block text-[11px] font-normal text-amber-400">Provider list unavailable: {providersError}. Existing owner is preserved unless changed.</span>}
                         </label>
                     </div>
                     <div className="mt-4 flex items-center gap-4">
