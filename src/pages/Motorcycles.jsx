@@ -836,7 +836,7 @@ export default function Motorcycles() {
 
                         {loading ? (
 
-                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 2xl:grid-cols-4">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6 2xl:grid-cols-4">
 
                                 {[1, 2, 3, 4, 5, 6].map(
                                     (item) => (
@@ -885,7 +885,7 @@ export default function Motorcycles() {
 
                         ) : (
 
-                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 2xl:grid-cols-4">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3 xl:gap-6 2xl:grid-cols-4">
 
                                 {bikes.map((bike) => (
 
@@ -977,7 +977,7 @@ function BikeCard({
         >
 
             {/* IMAGE */}
-            <div className="relative h-48 shrink-0 overflow-hidden bg-zinc-900 sm:h-56">
+            <div className="relative aspect-[16/10] max-h-56 min-h-44 shrink-0 overflow-hidden bg-zinc-900">
 
                 {showImage ? (
                     <img
@@ -1133,7 +1133,7 @@ function BikeCard({
                 </div>
 
                 {/* SPECS */}
-                <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-5">
 
                     {isEV ? (
                         <>
@@ -1196,7 +1196,7 @@ function BikeCard({
                         <Link
                             to={`/motorcycles/${bike._id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-xs font-bold text-black transition hover:bg-orange-400 sm:text-sm"
+                            className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-orange-500 px-2 py-3 text-center text-xs font-bold text-black transition hover:bg-orange-400 sm:text-sm"
                         >
                             <ChevronRight size={15} />
                             View Details
@@ -1207,9 +1207,10 @@ function BikeCard({
                             onClick={(e) => { e.stopPropagation(); onCompare(); }}
                             aria-label={`Compare ${bike.name || "motorcycle"}`}
                             title="Compare"
-                            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-xs font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400 sm:text-sm"
+                            className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-3 text-xs font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400 sm:text-sm"
                         >
                             <GitCompare size={15} />
+                            <span>Compare</span>
                         </button>
 
                     </div>
