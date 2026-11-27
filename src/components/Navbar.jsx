@@ -455,24 +455,6 @@ export default function Navbar({ activeTab, position = "sticky", leading = null 
                                                         Profile
                                                     </Link>
                                                     <Link
-                                                        to="/user/chats"
-                                                        role="menuitem"
-                                                        onClick={() => setUserMenuOpen(false)}
-                                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-orange-500/10 hover:text-orange-600 dark:text-zinc-300 dark:hover:text-orange-400"
-                                                    >
-                                                        <Sparkles size={14} aria-hidden="true" />
-                                                        My Chats
-                                                    </Link>
-                                                    <Link
-                                                        to="/user/favorites"
-                                                        role="menuitem"
-                                                        onClick={() => setUserMenuOpen(false)}
-                                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-orange-500/10 hover:text-orange-600 dark:text-zinc-300 dark:hover:text-orange-400"
-                                                    >
-                                                        <Heart size={14} aria-hidden="true" />
-                                                        My Favorites
-                                                    </Link>
-                                                    <Link
                                                         to="/user/settings"
                                                         role="menuitem"
                                                         onClick={() => setUserMenuOpen(false)}
@@ -482,17 +464,6 @@ export default function Navbar({ activeTab, position = "sticky", leading = null 
                                                         Settings
                                                     </Link>
                                                 </>
-                                            )}
-                                            {aiAllowed && (
-                                            <Link
-                                                to="/ai-plan"
-                                                role="menuitem"
-                                                onClick={() => setUserMenuOpen(false)}
-                                                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-orange-500/10 hover:text-orange-600 dark:text-zinc-300 dark:hover:text-orange-400"
-                                            >
-                                                <Crown size={14} aria-hidden="true" />
-                                                MOTOAI Plan
-                                            </Link>
                                             )}
                                             <Link
                                                 to="/motorcycles"
