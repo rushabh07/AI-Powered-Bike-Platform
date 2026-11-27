@@ -836,7 +836,7 @@ export default function Motorcycles() {
 
                         {loading ? (
 
-                            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 2xl:grid-cols-4">
 
                                 {[1, 2, 3, 4, 5, 6].map(
                                     (item) => (
@@ -885,7 +885,7 @@ export default function Motorcycles() {
 
                         ) : (
 
-                            <div className="grid gap-5 sm:gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3 2xl:grid-cols-4">
 
                                 {bikes.map((bike) => (
 
@@ -973,11 +973,11 @@ function BikeCard({
     return (
         <article
             onClick={() => navigate(`/motorcycles/${bike._id}`)}
-            className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]"
+            className="group flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.025] transition-all duration-300 hover:-translate-y-1 hover:border-orange-500/30 hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-orange-500/[0.04]"
         >
 
             {/* IMAGE */}
-            <div className="relative h-56 shrink-0 overflow-hidden bg-zinc-900">
+            <div className="relative h-48 shrink-0 overflow-hidden bg-zinc-900 sm:h-56">
 
                 {showImage ? (
                     <img
@@ -1009,7 +1009,7 @@ function BikeCard({
                     onClick={(e) => { e.stopPropagation(); onWishlist(); }}
                     aria-label={liked ? `Remove ${bike.name || "motorcycle"} from wishlist` : `Save ${bike.name || "motorcycle"} to wishlist`}
                     aria-pressed={liked}
-                    className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition ${liked
+                    className={`absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition ${liked
                         ? "bg-orange-500 text-black"
                         : "bg-black/60 text-white hover:bg-orange-500 hover:text-black"
                         }`}
@@ -1027,7 +1027,7 @@ function BikeCard({
             </div>
 
             {/* CONTENT */}
-            <div className="flex flex-1 flex-col p-5">
+            <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
 
                 <div className="flex items-center gap-3">
                     <BrandLogo
@@ -1041,7 +1041,7 @@ function BikeCard({
                             {bike.brand || "Motorcycle"}
                         </p>
 
-                        <h3 className="truncate text-xl font-bold">
+                        <h3 className="truncate text-lg font-bold sm:text-xl">
                             {bike.name || "Untitled Model"}
                         </h3>
                     </div>
@@ -1196,7 +1196,7 @@ function BikeCard({
                         <Link
                             to={`/motorcycles/${bike._id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-sm font-bold text-black transition hover:bg-orange-400"
+                            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-3 text-center text-xs font-bold text-black transition hover:bg-orange-400 sm:text-sm"
                         >
                             <ChevronRight size={15} />
                             View Details
@@ -1207,7 +1207,7 @@ function BikeCard({
                             onClick={(e) => { e.stopPropagation(); onCompare(); }}
                             aria-label={`Compare ${bike.name || "motorcycle"}`}
                             title="Compare"
-                            className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-sm font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400"
+                            className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 py-3 text-xs font-semibold text-zinc-300 transition hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-400 sm:text-sm"
                         >
                             <GitCompare size={15} />
                         </button>
