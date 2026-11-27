@@ -39,6 +39,19 @@ import {
 } from "../utils/format";
 
 const MAX_BIKES = 4;
+const COMPARE_SELECTION_KEY = "motoai.compare.selectedMotorcycleIds";
+const NA = "Not available";
+
+const readSavedSelection = () => {
+    try {
+        const ids = JSON.parse(localStorage.getItem(COMPARE_SELECTION_KEY) || "[]");
+        return Array.isArray(ids)
+            ? [...new Set(ids.filter((id) => typeof id === "string" && id.trim()))].slice(0, MAX_BIKES)
+            : [];
+    } catch {
+        return [];
+    }
+};
 
 // A spec row: label + per-bike { text, key }.
 // key=null renders "Not available"; differing keys highlight cells.
@@ -239,39 +252,52 @@ export default function Compare() {
     const tableRef = useRef(null);
     const debounceRef = useRef(null);
     const bootedRef = useRef(false);
+    const requestedBikeId = searchParams.get("id");
 
-    // Boot: full list (filters) + preselected ?id=
+    // Restore selected motorcycle IDs from the URL and local storage using fresh API data.
     useEffect(() => {
+        let active = true;
         const boot = async () => {
             setBootLoading(true);
             setBootError("");
             try {
                 const bikes = await getAllMotorcycles(region);
+                if (!active) return;
                 setAllBikes(bikes);
                 setResults(bikes);
                 const currentById = new Map(bikes.map((bike) => [String(bike._id), bike]));
-                setSelected((current) => current.map((bike) => currentById.get(String(bike._id)) || bike));
-
-                const preselect = searchParams.get("id");
-                if (preselect && !bootedRef.current) {
+                const savedIds = readSavedSelection();
+                const requestedIds = [requestedBikeId, ...savedIds].filter(Boolean);
+                const selectedIdsToRestore = [...new Set(requestedIds)].slice(0, MAX_BIKES);
+                const restored = await Promise.all(selectedIdsToRestore.map(async (id) => {
+                    if (currentById.has(String(id))) return currentById.get(String(id));
                     try {
-                        const bike = await getMotorcycle(preselect, region);
-                        setSelected([bike]);
+                        return await getMotorcycle(id, region);
                     } catch {
-                        /* invalid id → ignore */
+                        return null;
                     }
-                }
+                }));
+                if (!active) return;
+                setSelected(restored.filter(Boolean));
                 bootedRef.current = true;
             } catch (err) {
-                setBootError(
-                    err.message || "Unable to load motorcycles."
-                );
+                if (active) setBootError(err.message || "Unable to load motorcycles.");
             } finally {
-                setBootLoading(false);
+                if (active) setBootLoading(false);
             }
         };
         boot();
-    }, [region.state, region.city]);
+        return () => { active = false; };
+    }, [region.state, region.city, requestedBikeId]);
+
+    useEffect(() => {
+        if (!bootedRef.current) return;
+        try {
+            localStorage.setItem(COMPARE_SELECTION_KEY, JSON.stringify(selected.map((bike) => String(bike._id))));
+        } catch {
+            // Keep the current selection usable when browser storage is unavailable.
+        }
+    }, [selected]);
 
     // Debounced backend search
     useEffect(() => {
